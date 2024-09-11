@@ -1,7 +1,11 @@
 import cv2
 import paddleocr
+import functools
 
 from dataclasses import dataclass 
+from subtitle import SubtitleGenerator
+from datetime import timedelta
+from statistics import mean
 
 @dataclass
 class Point:
@@ -16,6 +20,14 @@ class Result:
     confidence: float
     text: str
 
+def merge_results(results: list[Result]) -> str:
+    """Combines 'Result' containers, sorting by increasing average-x values for the bounding box. This is L-to-R reading order."""
+    make_tuples = lambda res: (res.text, mean(point.x for point in res.bounding_box))
+    sort_tuples = lambda tup: tup[1]
+    reduce_tuples = lambda sum, tup: sum + tup[0]
+    tuples = map(make_tuples, results)
+    tuples_sorted = sorted(tuples, key=sort_tuples)
+    return functools.reduce(reduce_tuples, tuples_sorted, "")
 
 def ocr(image_or_path) -> list[Result]:
     # TODO: Download and save model to directory
@@ -44,7 +56,7 @@ def frame_rate(video):
     return video.get(cv2.CAP_PROP_FPS)
 
 def milliseconds(video):
-    return video.get(cv2.CAP_PROP_POS_MSEC)
+    return timedelta(milliseconds=video.get(cv2.CAP_PROP_POS_MSEC))
 
 def progress(video, current_frame):
     return (100.0 * current_frame) / video.get(cv2.CAP_PROP_FRAME_COUNT)
@@ -53,27 +65,31 @@ def crop_subtitle(image, height):
     return image[3*height//4:height, :]
 
 if __name__ == "__main__":
-    cap = cv2.VideoCapture("/Users/jacobbudzis/Code/PythonSubtitles/example.mkv")
+    # TODO: Convert this into a user-passable flag
+    cap = cv2.VideoCapture("/Users/jacobbudzis/Code/PythonSubtitles/examples/example.mkv")
     success, img = cap.read()
     height, _width, _channels = img.shape
-    img = crop_subtitle(img, height)
-    prev = img
+    prev = None
     frame_num = 0
     rate = frame_rate(cap)
-    subtitles = []
-    current_start = None
-    current_end = None
-    current_content = None
+    subtitle_generator = SubtitleGenerator()
     while success:
+        img = crop_subtitle(img, height)
+        if prev is None:
+            prev = img
         pct = progress(cap, frame_num)
         tm =cv2.matchTemplate(img, prev, cv2.TM_CCORR_NORMED)
-        if tm < 0.98:
-            print(f"frame: {frame_num} [{pct}%]")
-            print(f"  x-corr: {tm}")
+        # TODO: We can speed up this matching code by applying some pre-processing (such as contour detection) to the
+        #       current and previous image before doing the convolution.
+        # TODO: This is a very sensitive parameter. The difference between 0.99 and 0.999 could mean missing lots of subs
+        if tm < 0.999:
+            print(f"frame: {frame_num} [{round(pct, 3)}%]")
             frame_results = ocr(img)
-            for i, result in enumerate(frame_results):
-                print(f"  result #{i}: {result}")
+            subtitle_generator.add_subtitle(
+                time=milliseconds(cap), 
+                content=merge_results(frame_results)
+            )
         prev = img
         success, img = cap.read()
-        img = crop_subtitle(img, height)
         frame_num += 1
+    print(subtitle_generator.create_srt())

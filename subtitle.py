@@ -1,0 +1,62 @@
+import srt
+
+from datetime import timedelta
+
+class SubtitleGenerator:
+    """Generates SRT formatted subtitles."""
+    subtitles = []
+    current_content = ""
+    current_start_timestamp = None
+    current_recent_timestamp = None
+    _index = 1  # Access with self.current_index()
+
+    def current_index(self):
+        i = self._index;
+        self._index += 1;
+        return i
+
+    # TODO: We can implement outlier detection by maintaining a count of each repeated subtitle
+    #       and pruning (or merging) subtitles with low repetition in the create_srt() function.
+    def add_subtitle(self, time: timedelta, content: str):
+        remove_punctuation = str.maketrans({
+            '，': '', 
+            '.': '', 
+            '。': '',
+            '．': '',
+            '、': '',
+        })
+        self.current_recent_timestamp = time
+        if self.current_content.translate(remove_punctuation) == content.translate(remove_punctuation):
+            print(f"  MATCH: \"{content}\" == \"{self.current_content}\"")
+        else:
+            if self.current_content == "":
+                print(f"  INIT: \"{content}\"")
+                self.current_content = content
+                self.current_start_timestamp = time
+            else:
+                print(f"  OVERWRITE: \"{self.current_content}\" -> \"{content}\"")
+                self.subtitles.append(
+                    srt.Subtitle(
+                        index = self.current_index(),
+                        start = self.current_start_timestamp,
+                        end = self.current_recent_timestamp,
+                        content = self.current_content,
+                    )
+                )
+                self.current_start_timestamp = time
+                self.current_content = content
+
+    def create_srt(self):
+        if self.current_content != "":
+            self.subtitles.append(
+                srt.Subtitle(
+                    index = self.current_index(),
+                    start = self.current_start_timestamp,
+                    end = self.current_recent_timestamp,
+                    content = self.current_content,
+                )
+            )
+            self.current_content = ""
+            self.current_recent_timestamp = None
+            self.current_start_timestamp = None
+        return srt.compose(self.subtitles)
