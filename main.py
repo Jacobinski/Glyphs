@@ -72,34 +72,34 @@ if __name__ == "__main__":
         prog='ChineseSubtitleExtractor',
         description='Extracts hardcoded subtitles from videos into SRT files',
     )
-    # TODO: Support glob file expansion
     parser.add_argument(
-        'file',
-        help='path to a video file',
-        type=os.path.abspath,
+        "files",
+        help="paths to video file(s)",
+        nargs='+',  # Allow multiple file arguments
+        type=str,
     )
     args = vars(parser.parse_args())
-    video_file = args['file']
-    srt_file = os.path.splitext(video_file)[0] + '.srt'
+    video_files = args["files"]
 
-    cap = cv2.VideoCapture(video_file)
-    success, img = cap.read()
-    height, _width, _channels = img.shape
-    frame_num = 0
-    rate = frame_rate(cap)
-    subtitle_generator = SubtitleGenerator()
-    frame_selector = FrameSelector()
-    while success:
-        img = crop_subtitle(img, height)
-        pct = progress(cap, frame_num)
-        if frame_selector.select(img):
-            print(f"frame: {frame_num} [{round(pct, 3)}%]")
-            frame_results = ocr(img)
-            subtitle_generator.add_subtitle(
-                time=milliseconds(cap), 
-                content=merge_results(frame_results)
-            )
+    for video_file in video_files:
+        cap = cv2.VideoCapture(video_file)
         success, img = cap.read()
-        frame_num += 1
-    with open(srt_file, 'w') as f:
-        f.write(subtitle_generator.create_srt())
+        height, _width, _channels = img.shape
+        frame_num = 0
+        rate = frame_rate(cap)
+        subtitle_generator = SubtitleGenerator()
+        frame_selector = FrameSelector()
+        while success:
+            img = crop_subtitle(img, height)
+            pct = progress(cap, frame_num)
+            if frame_selector.select(img):
+                print(f"frame: {frame_num} [{round(pct, 3)}%]")
+                frame_results = ocr(img)
+                subtitle_generator.add_subtitle(
+                    time=milliseconds(cap), content=merge_results(frame_results)
+                )
+            success, img = cap.read()
+            frame_num += 1
+        srt_file = os.path.splitext(video_file)[0] + ".srt"
+        with open(srt_file, "w") as f:
+            f.write(subtitle_generator.create_srt())
