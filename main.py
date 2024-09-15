@@ -92,6 +92,7 @@ if __name__ == "__main__":
     video_files = args["files"]
 
     for video_file in video_files:
+        print(f"PROCESSING: {video_file}")
         cap = cv2.VideoCapture(video_file)
         success, img = cap.read()
         height, _width, _channels = img.shape
