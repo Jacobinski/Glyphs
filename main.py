@@ -4,6 +4,7 @@ import functools
 
 from dataclasses import dataclass 
 from subtitle import SubtitleGenerator
+from frame_selector import FrameSelector
 from datetime import timedelta
 from statistics import mean
 
@@ -69,27 +70,20 @@ if __name__ == "__main__":
     cap = cv2.VideoCapture("/Users/jacobbudzis/Code/PythonSubtitles/examples/example_short.mkv")
     success, img = cap.read()
     height, _width, _channels = img.shape
-    prev = None
     frame_num = 0
     rate = frame_rate(cap)
     subtitle_generator = SubtitleGenerator()
+    frame_selector = FrameSelector()
     while success:
         img = crop_subtitle(img, height)
-        if prev is None:
-            prev = img
         pct = progress(cap, frame_num)
-        tm =cv2.matchTemplate(img, prev, cv2.TM_CCORR_NORMED)
-        # TODO: We can speed up this matching code by applying some pre-processing (such as contour detection) to the
-        #       current and previous image before doing the convolution.
-        # TODO: This is a very sensitive parameter. The difference between 0.99 and 0.999 could mean missing lots of subs
-        if tm < 0.999:
+        if frame_selector.select(img):
             print(f"frame: {frame_num} [{round(pct, 3)}%]")
             frame_results = ocr(img)
             subtitle_generator.add_subtitle(
                 time=milliseconds(cap), 
                 content=merge_results(frame_results)
             )
-        prev = img
         success, img = cap.read()
         frame_num += 1
     with open("/Users/jacobbudzis/Code/PythonSubtitles/examples/example_short.srt", "w") as f:
