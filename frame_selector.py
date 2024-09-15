@@ -5,6 +5,28 @@ import cv2
 class FrameSelector:
     """Applies heuristics to determine if OCR should be run for a frame."""
     previous_frame = None
+    min_x = None
+    min_y = None
+    max_x = None
+    max_y = None
+
+    def add_filter(self, min_x, min_y, max_x, max_y):
+        self.min_x = int(min_x)
+        self.min_y = int(min_y)
+        self.max_x = int(max_x)
+        self.max_y = int(max_y)
+
+    def remove_filter(self):
+        self.min_x = None
+        self.min_y = None
+        self.max_x = None
+        self.max_y = None
+
+    def _crop(self, image):
+        return image[
+            self.min_y : self.max_y,
+            self.min_x : self.max_x,
+        ]
 
     def _preprocess(self, image):
         """Applies filters to image to increase signal-to-noise ratio"""
@@ -14,17 +36,16 @@ class FrameSelector:
         return edges
 
     # TODO: Add Python type to `frame`
-    # TODO: We currently crop the image to just the subtitle in main.py.
-    #       Maybe this logic should be moved in here?
-    # TODO: If there is a previous subtitle bounding box, it can be used to limit
-    #       the area which we search for a subtitle. This works nicely with the above
-    #       comment about cropping the frame.
     # TODO: This is a very sensitive parameter. The difference between 0.99 and 0.999 could mean missing lots of subs
     def select(self, frame) -> bool:
         frame = self._preprocess(frame)
         if self.previous_frame is None:
             self.previous_frame = frame
             return True
-        tm =cv2.matchTemplate(frame, self.previous_frame, cv2.TM_CCORR_NORMED)
+        tm = cv2.matchTemplate(
+            self._crop(frame),
+            self._crop(self.previous_frame),
+            cv2.TM_CCORR_NORMED
+        )
         self.previous_frame = frame
         return tm < 0.99

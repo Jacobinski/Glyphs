@@ -3,6 +3,7 @@ import paddleocr
 import functools
 import argparse
 import os
+import math
 
 from dataclasses import dataclass 
 from subtitle import SubtitleGenerator
@@ -31,6 +32,14 @@ def merge_results(results: list[Result]) -> str:
     tuples = map(make_tuples, results)
     tuples_sorted = sorted(tuples, key=sort_tuples)
     return functools.reduce(reduce_tuples, tuples_sorted, "")
+
+def merged_bounding_box(results: list[Result]):
+    points = functools.reduce(lambda pts, res: pts + res.bounding_box, results, [])
+    min_x = functools.reduce(lambda m, pt: min(m, pt.x), points, math.inf)
+    min_y = functools.reduce(lambda m, pt: min(m, pt.y), points, math.inf)
+    max_x = functools.reduce(lambda m, pt: max(m, pt.x), points, -math.inf)
+    max_y = functools.reduce(lambda m, pt: max(m, pt.y), points, -math.inf)
+    return min_x, min_y, max_x, max_y
 
 def ocr(image_or_path) -> list[Result]:
     # TODO: Download and save model to directory
@@ -65,6 +74,7 @@ def progress(video, current_frame):
     return (100.0 * current_frame) / video.get(cv2.CAP_PROP_FRAME_COUNT)
 
 def crop_subtitle(image, height):
+    # TODO: These values can be dynamically updated by the OCR
     return image[3*height//4:height, :]
 
 if __name__ == "__main__":
@@ -98,6 +108,12 @@ if __name__ == "__main__":
                 subtitle_generator.add_subtitle(
                     time=milliseconds(cap), content=merge_results(frame_results)
                 )
+                if len(frame_results) == 0:
+                    frame_selector.remove_filter()
+                else:
+                    frame_selector.add_filter(
+                        *merged_bounding_box(frame_results)
+                    )
             success, img = cap.read()
             frame_num += 1
         srt_file = os.path.splitext(video_file)[0] + ".srt"
