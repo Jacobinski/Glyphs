@@ -1,6 +1,8 @@
 import cv2
 import paddleocr
 import functools
+import argparse
+import os
 
 from dataclasses import dataclass 
 from subtitle import SubtitleGenerator
@@ -66,8 +68,21 @@ def crop_subtitle(image, height):
     return image[3*height//4:height, :]
 
 if __name__ == "__main__":
-    # TODO: Convert this into a user-passable flag
-    cap = cv2.VideoCapture("/Users/jacobbudzis/Code/PythonSubtitles/examples/example_short.mkv")
+    parser = argparse.ArgumentParser(
+        prog='ChineseSubtitleExtractor',
+        description='Extracts hardcoded subtitles from videos into SRT files',
+    )
+    # TODO: Support glob file expansion
+    parser.add_argument(
+        'file',
+        help='path to a video file',
+        type=os.path.abspath,
+    )
+    args = vars(parser.parse_args())
+    video_file = args['file']
+    srt_file = os.path.splitext(video_file)[0] + '.srt'
+
+    cap = cv2.VideoCapture(video_file)
     success, img = cap.read()
     height, _width, _channels = img.shape
     frame_num = 0
@@ -86,5 +101,5 @@ if __name__ == "__main__":
             )
         success, img = cap.read()
         frame_num += 1
-    with open("/Users/jacobbudzis/Code/PythonSubtitles/examples/example_short.srt", "w") as f:
+    with open(srt_file, 'w') as f:
         f.write(subtitle_generator.create_srt())
