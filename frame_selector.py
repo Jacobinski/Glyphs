@@ -8,11 +8,10 @@ class FrameSelector:
 
     def _preprocess(self, image):
         """Applies filters to image to increase signal-to-noise ratio"""
-        # MINIMUM_COLOR = 180
-        # MAXIMUM_COLOR = 255 
-        # image_thresholded = cv2.inRange(image, (MINIMUM_COLOR, MINIMUM_COLOR, MINIMUM_COLOR), (MAXIMUM_COLOR, MAXIMUM_COLOR, MAXIMUM_COLOR))
-        image_contours = cv2.Laplacian(image, cv2.CV_8U)
-        return image_contours
+        gray_image = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
+        blurred_image = cv2.GaussianBlur(gray_image, (5, 5), 0)
+        edges = cv2.Canny(blurred_image, 50, 150)
+        return edges
 
     # TODO: Add Python type to `frame`
     # TODO: We currently crop the image to just the subtitle in main.py.
@@ -20,8 +19,6 @@ class FrameSelector:
     # TODO: If there is a previous subtitle bounding box, it can be used to limit
     #       the area which we search for a subtitle. This works nicely with the above
     #       comment about cropping the frame.
-    # TODO: We can speed up this matching code by applying some pre-processing (such as contour detection) to the
-    #       current and previous image before doing the convolution.
     # TODO: This is a very sensitive parameter. The difference between 0.99 and 0.999 could mean missing lots of subs
     def select(self, frame) -> bool:
         frame = self._preprocess(frame)
