@@ -66,7 +66,7 @@ def crop_subtitle(image, height):
 
 if __name__ == "__main__":
     # TODO: Convert this into a user-passable flag
-    cap = cv2.VideoCapture("/Users/jacobbudzis/Code/PythonSubtitles/examples/example.mkv")
+    cap = cv2.VideoCapture("/Users/jacobbudzis/Code/PythonSubtitles/examples/example_short.mkv")
     success, img = cap.read()
     height, _width, _channels = img.shape
     prev = None
@@ -92,4 +92,5 @@ if __name__ == "__main__":
         prev = img
         success, img = cap.read()
         frame_num += 1
-    print(subtitle_generator.create_srt())
+    with open("/Users/jacobbudzis/Code/PythonSubtitles/examples/example_short.srt", "w") as f:
+        f.write(subtitle_generator.create_srt())
