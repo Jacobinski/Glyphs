@@ -1,28 +1,14 @@
 import cv2
-import paddleocr
 import functools
 import argparse
 import os
 import math
 
-from dataclasses import dataclass 
 from subtitle import SubtitleGenerator
 from frame_selector import FrameSelector
 from datetime import timedelta
 from statistics import mean
-
-@dataclass
-class Point:
-    """A point on a plane."""
-    x: int
-    y: int
-
-@dataclass
-class Result:
-    """Contains OCR information from PaddleOCR."""
-    bounding_box: list[Point]
-    confidence: float
-    text: str
+from ocr import Result, OCR
 
 def merge_results(results: list[Result]) -> str:
     """Combines 'Result' containers, sorting by increasing average-x values for the bounding box. This is L-to-R reading order."""
@@ -40,29 +26,6 @@ def merged_bounding_box(results: list[Result]):
     max_x = functools.reduce(lambda m, pt: max(m, pt.x), points, -math.inf)
     max_y = functools.reduce(lambda m, pt: max(m, pt.y), points, -math.inf)
     return min_x, min_y, max_x, max_y
-
-def ocr(image_or_path) -> list[Result]:
-    # TODO: Download and save model to directory
-    model = paddleocr.PaddleOCR(
-        use_angle_cls=False, 
-        lang="ch", 
-        show_log=False,
-    )
-    results = model.ocr(image_or_path, cls=False)[0]
-    if results is None:
-        return []
-    frame_results = []
-    for res in results:
-        bounding_box, character_tuple = res
-        characters, confidence = character_tuple
-        frame_results.append(
-            Result(
-                bounding_box = [Point(b[0], b[1]) for b in bounding_box],
-                confidence = confidence,
-                text = characters,
-            )
-        )
-    return frame_results
 
 def frame_rate(video):
     return video.get(cv2.CAP_PROP_FPS)
@@ -100,12 +63,13 @@ if __name__ == "__main__":
         rate = frame_rate(cap)
         subtitle_generator = SubtitleGenerator()
         frame_selector = FrameSelector()
+        ocr = OCR()
         while success:
             img = crop_subtitle(img, height)
             pct = progress(cap, frame_num)
             if frame_selector.select(img):
                 print(f"frame: {frame_num} [{round(pct, 3)}%]")
-                frame_results = ocr(img)
+                frame_results = ocr.run(img)
                 subtitle_generator.add_subtitle(
                     time=milliseconds(cap), content=merge_results(frame_results)
                 )
