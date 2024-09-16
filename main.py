@@ -38,7 +38,7 @@ def progress(video, current_frame):
 
 def crop_subtitle(image, height):
     # TODO: These values can be dynamically updated by the OCR
-    return image[3*height//4:height, :]
+    return image[13*height//16:height, :]
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(
@@ -66,6 +66,8 @@ if __name__ == "__main__":
         ocr = OCR()
         while success:
             img = crop_subtitle(img, height)
+            # cv2.imshow('image', img)
+            # cv2.waitKey(0)
             pct = progress(cap, frame_num)
             if frame_selector.select(img):
                 print(f"frame: {frame_num} [{round(pct, 3)}%]")
