@@ -1,6 +1,6 @@
 import cv2
-import math
-import numpy as np
+
+from skimage.metrics import structural_similarity as ssim
 
 # TODO: Should file names have underscores?
 # TODO: Install a Python linter, such as Black, to standardize conventions.
@@ -35,8 +35,7 @@ class FrameSelector:
         """Applies filters to image to increase signal-to-noise ratio"""
         gray_image = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
         blurred_image = cv2.GaussianBlur(gray_image, (5, 5), 0)
-        edges = cv2.Canny(blurred_image, 50, 150)
-        return edges
+        return blurred_image
 
     # TODO: Add Python type to `frame`
     # TODO: This is a very sensitive parameter. The difference between 0.99 and 0.999 could mean missing lots of subs
@@ -45,22 +44,19 @@ class FrameSelector:
         if self.previous_frame is None:
             self.previous_frame = frame
             return True
-        tm = cv2.matchTemplate(
+
+        # TODO: We can best-effort skip frames and backtrack if the OCR is not identical
+        ssim_score, _ = ssim(
             self._crop(frame),
             self._crop(self.previous_frame),
-            cv2.TM_CCORR_NORMED
+            full=True
+        )
+        edges1 = cv2.Canny(self._crop(frame), 50, 150)
+        edges2 = cv2.Canny(self._crop(self.previous_frame), 50, 150)
+        match_score = cv2.matchTemplate(
+            edges1, edges2, cv2.TM_CCORR_NORMED
         )[0][0]
-        self.previous_frame = frame
-        self.observations.append(tm)
 
-        magic_number = 10
-        if len(self.observations) < magic_number:
-            return True
-        # Compute z-score
-        mean = np.mean(self.observations[-magic_number:])
-        std_dev = np.std(self.observations[-magic_number:])
-        if std_dev == 0:
-            z_score = 0 if tm == mean else math.inf
-        else:
-            z_score = (tm - mean) / std_dev
-        return abs(z_score) > 0.3
+        # TODO: How do we combine these? Should we use ML to determine the thresholds?
+        self.previous_frame = frame
+        return ssim_score < 0.90 or match_score < 0.90
