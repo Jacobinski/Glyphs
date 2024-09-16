@@ -84,5 +84,5 @@ if __name__ == "__main__":
             success, img = cap.read()
             frame_num += 1
         srt_file = os.path.splitext(video_file)[0] + ".srt"
-        with open(srt_file, "w") as f:
+        with open(srt_file, "w", encoding='utf-8') as f:
             f.write(subtitle_generator.create_srt())
