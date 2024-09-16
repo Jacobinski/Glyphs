@@ -1,4 +1,6 @@
 import cv2
+import math
+import numpy as np
 
 # TODO: Should file names have underscores?
 # TODO: Install a Python linter, such as Black, to standardize conventions.
@@ -9,6 +11,7 @@ class FrameSelector:
     min_y = None
     max_x = None
     max_y = None
+    observations = []
 
     def add_filter(self, min_x, min_y, max_x, max_y):
         self.min_x = int(min_x)
@@ -46,6 +49,18 @@ class FrameSelector:
             self._crop(frame),
             self._crop(self.previous_frame),
             cv2.TM_CCORR_NORMED
-        )
+        )[0][0]
         self.previous_frame = frame
-        return tm < 0.99
+        self.observations.append(tm)
+
+        magic_number = 10
+        if len(self.observations) < magic_number:
+            return True
+        # Compute z-score
+        mean = np.mean(self.observations[-magic_number:])
+        std_dev = np.std(self.observations[-magic_number:])
+        if std_dev == 0:
+            z_score = 0 if tm == mean else math.inf
+        else:
+            z_score = (tm - mean) / std_dev
+        return abs(z_score) > 0.3
