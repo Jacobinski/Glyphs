@@ -1,6 +1,7 @@
 import srt
 
 from datetime import timedelta
+from nltk import edit_distance
 
 class SubtitleGenerator:
     """Generates SRT formatted subtitles."""
@@ -34,7 +35,7 @@ class SubtitleGenerator:
                 self.current_content = content
                 self.current_start_timestamp = time
             else:
-                print(f"  OVERWRITE: \"{self.current_content}\" -> \"{content}\"")
+                print(f"  OVERWRITE: \"{self.current_content}\" -> \"{content}\" (distance: {edit_distance(self.current_content, content)})")
                 self.subtitles.append(
                     srt.Subtitle(
                         index = self.current_index(),
