@@ -1,11 +1,15 @@
+import concurrent.futures
 import cv2
 import functools
 import argparse
 import os
 import math
+import concurrent
 
+from typing import List, Optional
+from classes import Frame, CurrentAndPreviousFrame
 from subtitle import SubtitleGenerator
-from frame_selector import FrameSelector
+from frame_selector import filter_frames
 from datetime import timedelta
 from statistics import mean
 from ocr import Result, OCR
@@ -30,11 +34,11 @@ def merged_bounding_box(results: list[Result]):
 def frame_rate(video):
     return video.get(cv2.CAP_PROP_FPS)
 
-def milliseconds(video):
-    return timedelta(milliseconds=video.get(cv2.CAP_PROP_POS_MSEC))
+def milliseconds(frame, fps):
+    return timedelta(milliseconds=(1000.0 * frame / fps))
 
-def progress(video, current_frame):
-    return (100.0 * current_frame) / video.get(cv2.CAP_PROP_FRAME_COUNT)
+def total_number_frames(video):
+    return int(video.get(cv2.CAP_PROP_FRAME_COUNT))
 
 def crop_subtitle(image, height):
     # TODO: These values can be dynamically updated by the OCR
@@ -56,33 +60,51 @@ if __name__ == "__main__":
 
     for video_file in video_files:
         print(f"PROCESSING: {video_file}")
+
+        ocr = OCR()
+        subtitle_generator = SubtitleGenerator()
+
+        i = 0
         cap = cv2.VideoCapture(video_file)
         success, img = cap.read()
         height, _width, _channels = img.shape
-        frame_num = 0
-        rate = frame_rate(cap)
-        subtitle_generator = SubtitleGenerator()
-        frame_selector = FrameSelector()
-        ocr = OCR()
+        previous_frame = None
+        fps = frame_rate(cap)
+        total_frames = total_number_frames(cap)
+
+        raw_frames = []
         while success:
-            img = crop_subtitle(img, height)
-            # cv2.imshow('image', img)
-            # cv2.waitKey(0)
-            pct = progress(cap, frame_num)
-            if frame_selector.select(img):
-                print(f"frame: {frame_num} [{round(pct, 3)}%]")
-                frame_results = ocr.run(img)
-                subtitle_generator.add_subtitle(
-                    time=milliseconds(cap), content=merge_results(frame_results)
-                )
-                if len(frame_results) == 0:
-                    frame_selector.remove_filter()
-                else:
-                    frame_selector.add_filter(
-                        *merged_bounding_box(frame_results)
-                    )
+            frame = Frame(index = i, image = crop_subtitle(img, height))
+            raw_frames.append(CurrentAndPreviousFrame(
+                current_frame=frame,
+                previous_frame=previous_frame,
+            ))
+            previous_frame = frame
+            i += 1
             success, img = cap.read()
-            frame_num += 1
+        cap.release()
+
+        # Determine frames that can be skipped due to similarity
+        pruned_frames: List[Optional[Frame]] = [None] * len(raw_frames)
+        with concurrent.futures.ThreadPoolExecutor(max_workers=os.cpu_count()) as executor:
+            # TODO: Since we pass idx here explicitly, we probably don't need it in frame type?
+            futures = {executor.submit(filter_frames, frame): idx for idx, frame in enumerate(raw_frames)}
+
+            for future in concurrent.futures.as_completed(futures):
+                idx = futures[future]
+                frame_or_none = future.result()
+                pruned_frames[idx] = frame_or_none
+
+        for i, frame in enumerate(pruned_frames):
+            print(f"frame: {i} [{round(100.0 * i / total_frames, 3)}%]")
+            if frame is None:
+                continue
+            frame_results = ocr.run(frame.image)
+            subtitle_generator.add_subtitle(
+                time=milliseconds(frame.index, fps), content=merge_results(frame_results)
+            )
+
         srt_file = os.path.splitext(video_file)[0] + ".srt"
         with open(srt_file, "w", encoding='utf-8') as f:
             f.write(subtitle_generator.create_srt())
+
