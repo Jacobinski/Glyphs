@@ -12,7 +12,7 @@ from subtitle import SubtitleGenerator
 from frame_selector import filter_frames
 from datetime import timedelta
 from statistics import mean
-from ocr import Result, OCR
+from ocr import Result, OCRWorker
 
 def merge_results(results: list[Result]) -> str:
     """Combines 'Result' containers, sorting by increasing average-x values for the bounding box. This is L-to-R reading order."""
@@ -61,7 +61,6 @@ if __name__ == "__main__":
     for video_file in video_files:
         print(f"PROCESSING: {video_file}")
 
-        ocr = OCR()
         subtitle_generator = SubtitleGenerator()
 
         i = 0
@@ -95,13 +94,17 @@ if __name__ == "__main__":
                 frame_or_none = future.result()
                 pruned_frames[idx] = frame_or_none
 
-        for i, frame in enumerate(pruned_frames):
-            print(f"frame: {i} [{round(100.0 * i / total_frames, 3)}%]")
-            if frame is None:
+        with concurrent.futures.ThreadPoolExecutor(max_workers=os.cpu_count()) as executor:
+            workers = [OCRWorker() for _ in range(executor._max_workers)]
+            futures = [executor.submit(workers[i % len(workers)].process_frame, frame) for i, frame in enumerate(pruned_frames)]
+            ocr_results = [future.result() for future in futures]
+
+        for idx, results in enumerate(ocr_results):
+            print(f"frame: {idx} [{round(100.0 * idx / total_frames, 3)}%]")
+            if results is None:
                 continue
-            frame_results = ocr.run(frame.image)
             subtitle_generator.add_subtitle(
-                time=milliseconds(frame.index, fps), content=merge_results(frame_results)
+                time=milliseconds(idx, fps), content=merge_results(results)
             )
 
         srt_file = os.path.splitext(video_file)[0] + ".srt"

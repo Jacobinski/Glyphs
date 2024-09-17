@@ -1,6 +1,8 @@
 import paddleocr
 
 from dataclasses import dataclass 
+from classes import Frame
+from typing import Optional
 
 @dataclass
 class Point:
@@ -15,20 +17,23 @@ class Result:
     confidence: float
     text: str
 
-class OCR:
-    """Wrapper around PaddleOCR engine."""
-    model = None
-
+class OCRWorker:
     def __init__(self):
         self.model = paddleocr.PaddleOCR(
-            use_angle_cls=False, 
-            lang="ch", 
+            use_angle_cls=False,
+            lang="ch",
             show_log=False,
         )
 
-    def run(self, image_or_path) -> list[Result]:
-        results = self.model.ocr(image_or_path, cls=False)[0]
+    def process_frame(self, frame: Optional[Frame]) -> list[Optional[Result]]:
+        if frame is None:
+            # Signifies that the frame is nil.
+            # SRT generator should ignore such results.
+            return None
+        results = self.model.ocr(frame.image, cls=False)[0]
         if results is None:
+            # Signfies that the frame has data, but no subtitles.
+            # SRT generator uses these results to determine when subtitles stop.
             return []
         frame_results = []
         for res in results:
