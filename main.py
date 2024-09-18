@@ -1,21 +1,22 @@
-import concurrent.futures
 import cv2
 import functools
 import argparse
 import os
 import math
-import concurrent
-
 from tqdm import tqdm
-from classes import Frame, CurrentAndPreviousFrame 
+from classes import Frame, CurrentAndPreviousFrame
 from subtitle import SubtitleGenerator
 from frame_selector import filter_frames
 from datetime import timedelta
 from statistics import mean
 from ocr import Result, initialize_ocr_model, process_frame
-from multiprocessing.shared_memory import ShareableList
+from multiprocessing import Process, Queue, cpu_count, Manager, Value
 
-MAX_WORKERS = os.cpu_count()
+MAX_PRUNE_WORKERS = 3
+MAX_OCR_WORKERS = cpu_count() - 3
+
+# Define a unique sentinel value to indicate the end of the queue
+STOP_SIGNAL = "STOP"
 
 def merge_results(results: list[Result]) -> str:
     """Combines 'Result' containers, sorting by increasing average-x values for the bounding box. This is L-to-R reading order."""
@@ -47,6 +48,27 @@ def crop_subtitle(image, height):
     # TODO: These values can be dynamically updated by the OCR
     return image[13*height//16:height, :]
 
+def prune_worker(input_queue, output_queue, counter):
+    while True:
+        idx, frame = input_queue.get()
+        if frame == STOP_SIGNAL:
+            break
+        result_frame = filter_frames(frame)
+        output_queue.put((idx, result_frame))
+        with counter.get_lock():
+            counter.value += 1
+
+def ocr_worker(input_queue, output_queue, counter):
+    initialize_ocr_model()
+    while True:
+        idx, frame = input_queue.get()
+        if frame == STOP_SIGNAL:
+            break
+        result = process_frame(frame)
+        output_queue.put((idx, result))
+        with counter.get_lock():
+            counter.value += 1
+
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(
         prog='ChineseSubtitleExtractor',
@@ -66,7 +88,6 @@ if __name__ == "__main__":
 
         subtitle_generator = SubtitleGenerator()
 
-        i = 0
         cap = cv2.VideoCapture(video_file)
         success, img = cap.read()
         height, _width, _channels = img.shape
@@ -74,55 +95,84 @@ if __name__ == "__main__":
         fps = frame_rate(cap)
         total_frames = total_number_frames(cap)
 
-        frames = []
-        with tqdm(total=total_frames, desc="Loading frames") as pbar:
-            while success:
-                frame = Frame(index = i, image = crop_subtitle(img, height))
-                frames.append(CurrentAndPreviousFrame(
-                    current_frame=frame,
-                    previous_frame=previous_frame,
-                ).to_bytes())
-                previous_frame = frame
-                i += 1
-                success, img = cap.read()
-                pbar.update(1)
+        load_pbar = tqdm(total=total_frames, desc="Loading video frames")
+        prune_pbar = tqdm(total=total_frames, desc="Filtering duplicate frames")
+        ocr_pbar = tqdm(total=total_frames, desc="Running OCR on frames")
+
+        prune_queue = Queue()
+        ocr_queue = Queue()
+        result_queue = Queue()
+
+        prune_counter = Value('i', 0)
+        ocr_counter = Value('i', 0)
+
+        prune_processes = [
+            Process(target=prune_worker, args=(prune_queue, ocr_queue, prune_counter))
+            for _ in range(MAX_PRUNE_WORKERS)
+        ]
+        ocr_processes = [
+            Process(target=ocr_worker, args=(ocr_queue, result_queue, ocr_counter))
+            for _ in range(MAX_OCR_WORKERS)
+        ]
+        for p in prune_processes:
+            p.start()
+        for p in ocr_processes:
+            p.start()
+
+        i = 0
+        while success:
+            frame = Frame(index=i, image=crop_subtitle(img, height))
+            prune_queue.put(
+                (
+                    i,
+                    CurrentAndPreviousFrame(
+                        current_frame=frame,
+                        previous_frame=previous_frame,
+                    )
+                )
+            )
+            previous_frame = frame
+            i += 1
+            success, img = cap.read()
+            load_pbar.update(1)
+
+        # Update progress bars with correct total
+        load_pbar.total = i - 1
+        prune_pbar.total = i - 1
+        ocr_pbar.total = i - 1
+
         cap.release()
 
-        shareable_frames = ShareableList(tqdm(frames, desc="Moving frames to shared memory"), name='frames')
+        # Update progress bars in the main process
+        while prune_counter.value < i-1 or ocr_counter.value < i-1:
+            prune_pbar.n = prune_counter.value
+            prune_pbar.refresh()
+            ocr_pbar.n = ocr_counter.value
+            ocr_pbar.refresh()
 
-        # Determine frames that can be skipped due to similarity
-        pruned_frames = [None] * len(frames)
-        with concurrent.futures.ProcessPoolExecutor(max_workers=MAX_WORKERS) as executor:
-            futures = {
-                executor.submit(filter_frames, frame): idx 
-                for idx, frame in enumerate(tqdm(shareable_frames, desc="Starting prune threads"))
-            }
+        # TODO: Read until the queue is empty, not some hard coded number
+        # results = []
+        # for _ in tqdm(range(i), desc="Collecting OCR results"):
+        #     idx, result = result_queue.get()
+        #     results[idx] = result
+        results = [None] * i
+        for _ in tqdm(range(i), desc="Collecting OCR results"):
+            idx, result = result_queue.get()
+            results[idx] = result
 
-            for future in tqdm(concurrent.futures.as_completed(futures), total=len(futures), desc="Waiting for prune threads"):
-                idx = futures[future]
-                frame_or_none = future.result()
-                pruned_frames[idx] = frame_or_none
+        for _ in prune_processes:
+            print("B1")
+            prune_queue.put((None, STOP_SIGNAL))
+        for _ in ocr_processes:
+            print("B2")
+            ocr_queue.put((None, STOP_SIGNAL))
 
-        shareable_frames.shm.close()
-        shareable_frames.shm.unlink()
+        for p in prune_processes:
+            p.join()
+        for p in ocr_processes:
+            p.join()
 
-        shareable_pruned_frames = ShareableList(tqdm(pruned_frames, desc="Moving prunes to shared memory"), name='pruned_frames')
-
-        ocr_results = [None] * len(pruned_frames)
-        with concurrent.futures.ProcessPoolExecutor(max_workers=MAX_WORKERS, initializer=initialize_ocr_model) as executor:
-            futures = {
-                executor.submit(process_frame, frame): idx 
-                for idx, frame in enumerate(tqdm(shareable_pruned_frames, desc="Starting OCR threads")) if frame is not None
-            }
-
-            for future in tqdm(concurrent.futures.as_completed(futures), total=len(futures), desc="Waiting for OCR threads"):
-                idx = futures[future]
-                ocr_results[idx] = future.result()
-
-        shareable_pruned_frames.shm.close()
-        shareable_pruned_frames.shm.unlink()
-
-        for idx, results in tqdm(enumerate(ocr_results)):
+        for idx, results in tqdm(enumerate(results), desc="Creating SRT file"):
             if results is None:
                 continue
             subtitle_generator.add_subtitle(
@@ -132,3 +182,7 @@ if __name__ == "__main__":
         srt_file = os.path.splitext(video_file)[0] + ".srt"
         with open(srt_file, "w", encoding='utf-8') as f:
             f.write(subtitle_generator.create_srt())
+
+        load_pbar.close()
+        prune_pbar.close()
+        ocr_pbar.close()

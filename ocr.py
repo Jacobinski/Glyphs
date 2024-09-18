@@ -28,12 +28,11 @@ def initialize_ocr_model():
         show_log=False,
     )
 
-def process_frame(frame_bytes) -> list[Optional[Result]]:
-    if frame_bytes is None:
+def process_frame(frame: Frame) -> list[Optional[Result]]:
+    if frame is None:
         # Signifies that the frame is nil.
         # SRT generator should ignore such results.
         return None
-    frame = Frame.from_bytes(frame_bytes)
     global ocr_model
     results = ocr_model.ocr(frame.image, cls=False)[0]
     if results is None:
