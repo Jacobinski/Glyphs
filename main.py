@@ -7,13 +7,15 @@ import math
 import concurrent
 
 from tqdm import tqdm
-from typing import List, Optional
-from classes import Frame, CurrentAndPreviousFrame
+from classes import Frame, CurrentAndPreviousFrame 
 from subtitle import SubtitleGenerator
 from frame_selector import filter_frames
 from datetime import timedelta
 from statistics import mean
 from ocr import Result, initialize_ocr_model, process_frame
+from multiprocessing.shared_memory import ShareableList
+
+MAX_WORKERS = os.cpu_count()
 
 def merge_results(results: list[Result]) -> str:
     """Combines 'Result' containers, sorting by increasing average-x values for the bounding box. This is L-to-R reading order."""
@@ -72,37 +74,53 @@ if __name__ == "__main__":
         fps = frame_rate(cap)
         total_frames = total_number_frames(cap)
 
-        raw_frames = []
-        with tqdm(total=total_frames, desc="Loading Frames") as pbar:
+        frames = []
+        with tqdm(total=total_frames, desc="Loading frames") as pbar:
             while success:
                 frame = Frame(index = i, image = crop_subtitle(img, height))
-                raw_frames.append(CurrentAndPreviousFrame(
+                frames.append(CurrentAndPreviousFrame(
                     current_frame=frame,
                     previous_frame=previous_frame,
-                ))
+                ).to_bytes())
                 previous_frame = frame
                 i += 1
                 success, img = cap.read()
                 pbar.update(1)
         cap.release()
 
-        # Determine frames that can be skipped due to similarity
-        pruned_frames: List[Optional[Frame]] = [None] * len(raw_frames)
-        with concurrent.futures.ProcessPoolExecutor(max_workers=1) as executor:
-            futures = {executor.submit(filter_frames, frame): idx for idx, frame in enumerate(raw_frames)}
+        shareable_frames = ShareableList(tqdm(frames, desc="Moving frames to shared memory"), name='frames')
 
-            for future in tqdm(concurrent.futures.as_completed(futures), total=len(futures), desc="Pruning Frames"):
+        # Determine frames that can be skipped due to similarity
+        pruned_frames = [None] * len(frames)
+        with concurrent.futures.ProcessPoolExecutor(max_workers=MAX_WORKERS) as executor:
+            futures = {
+                executor.submit(filter_frames, frame): idx 
+                for idx, frame in enumerate(tqdm(shareable_frames, desc="Starting prune threads"))
+            }
+
+            for future in tqdm(concurrent.futures.as_completed(futures), total=len(futures), desc="Waiting for prune threads"):
                 idx = futures[future]
                 frame_or_none = future.result()
                 pruned_frames[idx] = frame_or_none
 
-        ocr_results = [None] * len(pruned_frames)
-        with concurrent.futures.ProcessPoolExecutor(max_workers=1, initializer=initialize_ocr_model) as executor:
-            futures = {executor.submit(process_frame, frame): idx for idx, frame in enumerate(pruned_frames) if frame is not None}
+        shareable_frames.shm.close()
+        shareable_frames.shm.unlink()
 
-            for future in tqdm(concurrent.futures.as_completed(futures), total=len(futures), desc="Running OCR"):
+        shareable_pruned_frames = ShareableList(tqdm(pruned_frames, desc="Moving prunes to shared memory"), name='pruned_frames')
+
+        ocr_results = [None] * len(pruned_frames)
+        with concurrent.futures.ProcessPoolExecutor(max_workers=MAX_WORKERS, initializer=initialize_ocr_model) as executor:
+            futures = {
+                executor.submit(process_frame, frame): idx 
+                for idx, frame in enumerate(tqdm(shareable_pruned_frames, desc="Starting OCR threads")) if frame is not None
+            }
+
+            for future in tqdm(concurrent.futures.as_completed(futures), total=len(futures), desc="Waiting for OCR threads"):
                 idx = futures[future]
                 ocr_results[idx] = future.result()
+
+        shareable_pruned_frames.shm.close()
+        shareable_pruned_frames.shm.unlink()
 
         for idx, results in tqdm(enumerate(ocr_results)):
             if results is None:

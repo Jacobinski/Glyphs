@@ -21,8 +21,9 @@ def _similar(image1: Frame, image2: Frame) -> int:
     # If either heuristic thinks the images are non-similar, return true.
     return ssim_score < 0.95 or match_score < 0.95
 
-def filter_frames(bundle: CurrentAndPreviousFrame) -> Optional[Frame]:
+def filter_frames(bundle_bytes) -> Optional[Frame]:
+    bundle = CurrentAndPreviousFrame.from_bytes(bundle_bytes)
     """Filters out similar frames based on heuristics"""
     if bundle.previous_frame is None or _similar(bundle.current_frame, bundle.previous_frame):
-        return bundle.current_frame
+        return bundle.current_frame.to_bytes()
     return None
