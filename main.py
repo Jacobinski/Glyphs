@@ -40,6 +40,17 @@ def crop_subtitle(image, height):
     # TODO: These values can be dynamically updated by the OCR
     return image[13*height//16:height, :]
 
+def count_frames(video):
+    """Determine the number of frames in a video via a full scan.
+
+    The other methods, such as video.get(cv2.CAP_PROP_FRAME_COUNT) are not
+    accurate for some videos.
+    """
+    i = 0
+    while video.read()[0]:
+        i += 1
+    return i
+
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(
         prog='ChineseSubtitleExtractor',
@@ -56,6 +67,7 @@ if __name__ == "__main__":
 
     for video_file in video_files:
         print(f"PROCESSING: {video_file}")
+        print(f"FRAME COUNT: {count_frames(cv2.VideoCapture(video_file))}")
         cap = cv2.VideoCapture(video_file)
         success, img = cap.read()
         height, _width, _channels = img.shape
