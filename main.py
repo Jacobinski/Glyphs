@@ -12,8 +12,8 @@ from statistics import mean
 from ocr import Result, initialize_ocr_model, process_frame
 from multiprocessing import Process, Queue, cpu_count, Manager, Value
 
-MAX_PRUNE_WORKERS = 3
-MAX_OCR_WORKERS = cpu_count() - 3
+MAX_PRUNE_WORKERS = 4
+MAX_OCR_WORKERS = cpu_count() - 4
 
 # Define a unique sentinel value to indicate the end of the queue
 STOP_SIGNAL = "STOP"
@@ -135,6 +135,12 @@ if __name__ == "__main__":
             i += 1
             success, img = cap.read()
             load_pbar.update(1)
+
+            # Update the UI while we're in a loop
+            prune_pbar.n = prune_counter.value
+            prune_pbar.refresh()
+            ocr_pbar.n = ocr_counter.value
+            ocr_pbar.refresh()
 
         # Update progress bars with correct total
         load_pbar.total = i - 1
