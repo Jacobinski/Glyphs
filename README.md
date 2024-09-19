@@ -15,3 +15,15 @@ pip install paddlepaddle-gpu
 pip install "paddleocr>=2.0.1"
 pip install nltk
 ```
+
+## Installation Notes (Mac M3 Pro)
+Install the nightly version to avoid issues with a hanging PaddleOCR thread: https://github.com/PaddlePaddle/PaddleOCR/issues/11706
+```
+python -m pip install paddlepaddle==0.0.0 -f https://www.paddlepaddle.org.cn/whl/mac/cpu/develop.html
+
+pip install opencv-python
+pip install srt
+pip install "paddleocr>=2.0.1"
+pip install nltk
+pip install setuptools
+```
