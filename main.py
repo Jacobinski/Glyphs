@@ -3,6 +3,8 @@ import functools
 import argparse
 import os
 import math
+import time
+
 from tqdm import tqdm
 from classes import Frame, CurrentAndPreviousFrame
 from subtitle import SubtitleGenerator
@@ -151,6 +153,7 @@ if __name__ == "__main__":
 
         # Update progress bars in the main process
         while prune_counter.value < i-1 or ocr_counter.value < i-1:
+            time.sleep(0.1)
             prune_pbar.n = prune_counter.value
             prune_pbar.refresh()
             ocr_pbar.n = ocr_counter.value
