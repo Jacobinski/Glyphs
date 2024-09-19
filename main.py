@@ -170,10 +170,8 @@ if __name__ == "__main__":
             results[idx] = result
 
         for _ in prune_processes:
-            print("B1")
             prune_queue.put((None, STOP_SIGNAL))
         for _ in ocr_processes:
-            print("B2")
             ocr_queue.put((None, STOP_SIGNAL))
 
         for p in prune_processes:
