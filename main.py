@@ -14,9 +14,8 @@ from datetime import timedelta
 from ocr import Result, OCR
 from video import Video
 from dataclasses import dataclass
-from concurrent.futures import ThreadPoolExecutor, as_completed
+from concurrent.futures import ProcessPoolExecutor, as_completed
 from tqdm import tqdm
-from multiprocessing import Value
 
 @dataclass
 class Subtitle:
@@ -73,13 +72,14 @@ def count_frames(file):
     video.release()
     return i
 
-def extract_video_subtitles(file: str, start_idx: int, stop_idx: int, progress: Value) -> Dict[int, Subtitle]:
+def extract_video_subtitles(file: str, start_idx: int, stop_idx: int) -> Dict[int, Subtitle]:
     video = Video(file, start_idx, stop_idx)
     frame_selector = FrameSelector()
     height = video.frame_height()
     ocr = OCR()
     sub_dict: Dict[int, Subtitle] = {}
     for frame in video:
+        print(f"frame: {video.frame_number()} [{round(video.progress(), 3)}%]")
         frame = crop_subtitle(frame, height)
         if frame_selector.select(frame):
             frame_results = ocr.run(frame)
@@ -93,8 +93,8 @@ def extract_video_subtitles(file: str, start_idx: int, stop_idx: int, progress: 
                 frame_selector.add_filter(
                     *merged_bounding_box(frame_results)
                 )
-        with progress.get_lock():
-            progress.value += 1
+        # with progress.get_lock():
+        #     progress.value += 1
     return sub_dict
 
 if __name__ == "__main__":
@@ -118,25 +118,30 @@ if __name__ == "__main__":
         num_workers = os.cpu_count() - 1
         segments = split_into_segments(num_frames, num_workers)
 
+        # TODO: We cannot pass a multiprocessing.Value object to ProcessPoolExecutor
+        #       because it is not pickleable: https://stackoverflow.com/a/1705235.
+        #       Attempting to do so will throw:
+        #         RuntimeError: Synchronized objects should only be shared between processes through inheritance
         # TODO: Create N of these and have them just communicate with the main thread
         #       to reduce lock contention. We can also set Lock=False in these cases.
-        progress = Value('i', 0)
+        # progress = Value('i', 0)
 
         subs = [None] * num_frames
-        with ThreadPoolExecutor(max_workers=num_workers) as executor:
+        with ProcessPoolExecutor(max_workers=num_workers) as executor:
             futures = [
-                executor.submit(extract_video_subtitles, video_file, start, stop, progress)
+                executor.submit(extract_video_subtitles, video_file, start, stop)
                 for start, stop in segments
             ]
 
-            with tqdm(total=num_frames, desc="Processing video") as pbar:
-                while True:
-                    val = progress.value
-                    pbar.n = val
-                    pbar.refresh()
-                    if val >= num_frames:
-                        break
-                    time.sleep(0.100)
+            # count = 0
+            # with tqdm(total=num_frames, desc="Processing video") as pbar:
+                # while True:
+                #     val = progress.value
+                #     pbar.n = val
+                #     pbar.refresh()
+                #     if val >= num_frames:
+                #         break
+                #     time.sleep(0.100)
 
             for future in as_completed(futures):
                 for idx, sub in future.result().items():
