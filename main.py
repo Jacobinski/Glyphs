@@ -6,7 +6,6 @@ import math
 
 from subtitle import SubtitleGenerator
 from frame_selector import FrameSelector
-from datetime import timedelta
 from statistics import mean
 from ocr import Result, OCR
 from video import Video
