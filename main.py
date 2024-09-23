@@ -114,8 +114,14 @@ if __name__ == "__main__":
         nargs='+',  # Allow multiple file arguments
         type=str,
     )
+    parser.add_argument(
+        "--verbose",
+        help="Enable additional logs",
+        action=argparse.BooleanOptionalAction  # Allows using --verbose for true and --no-verbose for false
+    )
     args = vars(parser.parse_args())
     video_files = args["files"]
+    verbose = args["verbose"]
 
     for video_file in video_files:
         print(f"PROCESSING: {video_file}")
@@ -150,7 +156,7 @@ if __name__ == "__main__":
             for idx, sub in result_queue.get().items():
                 subs[idx] = sub
 
-        subtitle_generator = SubtitleGenerator()
+        subtitle_generator = SubtitleGenerator(verbose=verbose)
         for sub in subs:
             if sub is None:
                 continue
