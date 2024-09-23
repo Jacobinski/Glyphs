@@ -9,6 +9,7 @@ from frame_selector import FrameSelector
 from datetime import timedelta
 from statistics import mean
 from ocr import Result, OCR
+from video import Video
 
 def merge_results(results: list[Result]) -> str:
     """Combines 'Result' containers, sorting by increasing average-x values for the bounding box. This is L-to-R reading order."""
@@ -26,15 +27,6 @@ def merged_bounding_box(results: list[Result]):
     max_x = functools.reduce(lambda m, pt: max(m, pt.x), points, -math.inf)
     max_y = functools.reduce(lambda m, pt: max(m, pt.y), points, -math.inf)
     return min_x, min_y, max_x, max_y
-
-def frame_rate(video):
-    return video.get(cv2.CAP_PROP_FPS)
-
-def milliseconds(video):
-    return timedelta(milliseconds=video.get(cv2.CAP_PROP_POS_MSEC))
-
-def progress(video, current_frame):
-    return (100.0 * current_frame) / video.get(cv2.CAP_PROP_FRAME_COUNT)
 
 def crop_subtitle(image, height):
     # TODO: These values can be dynamically updated by the OCR
@@ -68,24 +60,21 @@ if __name__ == "__main__":
     for video_file in video_files:
         print(f"PROCESSING: {video_file}")
         print(f"FRAME COUNT: {count_frames(cv2.VideoCapture(video_file))}")
-        cap = cv2.VideoCapture(video_file)
-        success, img = cap.read()
-        height, _width, _channels = img.shape
-        frame_num = 0
-        rate = frame_rate(cap)
+        video = Video(video_file)
         subtitle_generator = SubtitleGenerator()
         frame_selector = FrameSelector()
+        height = video.frame_height()
         ocr = OCR()
-        while success:
-            img = crop_subtitle(img, height)
-            # cv2.imshow('image', img)
-            # cv2.waitKey(0)
-            pct = progress(cap, frame_num)
-            if frame_selector.select(img):
-                print(f"frame: {frame_num} [{round(pct, 3)}%]")
-                frame_results = ocr.run(img)
+        for frame in video:
+            frame = crop_subtitle(frame, height)
+            pct = video.progress()
+            fnum = video.frame_number()
+            if frame_selector.select(frame):
+                print(f"frame: {fnum} [{round(pct, 3)}%]")
+                frame_results = ocr.run(frame)
                 subtitle_generator.add_subtitle(
-                    time=milliseconds(cap), content=merge_results(frame_results)
+                    time=video.time(),
+                    content=merge_results(frame_results)
                 )
                 if len(frame_results) == 0:
                     frame_selector.remove_filter()
@@ -93,8 +82,6 @@ if __name__ == "__main__":
                     frame_selector.add_filter(
                         *merged_bounding_box(frame_results)
                     )
-            success, img = cap.read()
-            frame_num += 1
         srt_file = os.path.splitext(video_file)[0] + ".srt"
         with open(srt_file, "w", encoding='utf-8') as f:
             f.write(subtitle_generator.create_srt())
