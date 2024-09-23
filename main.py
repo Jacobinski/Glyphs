@@ -5,7 +5,7 @@ import os
 import math
 
 from subtitle import SubtitleGenerator
-from typing import List
+from typing import Dict
 from frame_selector import FrameSelector
 from statistics import mean
 from datetime import timedelta
@@ -15,7 +15,6 @@ from dataclasses import dataclass
 
 @dataclass
 class Subtitle:
-    frame_num: int
     time: timedelta
     text: str
 
@@ -72,18 +71,15 @@ if __name__ == "__main__":
         height = video.frame_height()
         frame_count = count_frames(cv2.VideoCapture(video_file))
         ocr = OCR()
-        subtitles:List[Subtitle] = []
+        sub_dict: Dict[int, Subtitle] = {}
         for frame in video:
             print(f"frame: {video.frame_number()} [{round(video.progress(), 3)}%]")
             frame = crop_subtitle(frame, height)
             if frame_selector.select(frame):
                 frame_results = ocr.run(frame)
-                subtitles.append(
-                    Subtitle(
-                        frame_num = video.frame_number(),
-                        time = video.time(),
-                        text = merge_results(frame_results),
-                    )
+                sub_dict[video.frame_number()] = Subtitle(
+                    time = video.time(),
+                    text = merge_results(frame_results),
                 )
                 if len(frame_results) == 0:
                     frame_selector.remove_filter()
@@ -93,7 +89,12 @@ if __name__ == "__main__":
                     )
 
         subtitle_generator = SubtitleGenerator()
-        for sub in subtitles:
+        sub_list = [None] * frame_count
+        for idx, sub in sub_dict.items():
+            sub_list[idx] = sub
+        for sub in sub_list:
+            if sub is None:
+                continue
             subtitle_generator.add_subtitle(
                 time = sub.time,
                 content = sub.text
