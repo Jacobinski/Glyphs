@@ -1,6 +1,13 @@
-import paddleocr
+import threading
 
-from dataclasses import dataclass 
+from dataclasses import dataclass
+
+# This asynchronously loads the PaddleOCR library to save O(seconds) during startup
+def load_paddleocr():
+    global paddleocr
+    paddleocr = __import__("paddleocr")
+import_thread = threading.Thread(target=load_paddleocr)
+import_thread.start()
 
 @dataclass
 class Point:
@@ -20,9 +27,10 @@ class OCR:
     model = None
 
     def __init__(self):
+        import_thread.join()
         self.model = paddleocr.PaddleOCR(
-            use_angle_cls=False, 
-            lang="ch", 
+            use_angle_cls=False,
+            lang="ch",
             show_log=False,
         )
 
