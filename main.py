@@ -39,16 +39,42 @@ def crop_subtitle(image, height):
     # TODO: These values can be dynamically updated by the OCR
     return image[13*height//16:height, :]
 
-def count_frames(video):
+def count_frames(file):
     """Determine the number of frames in a video via a full scan.
 
     The other methods, such as video.get(cv2.CAP_PROP_FRAME_COUNT) are not
     accurate for some videos.
     """
     i = 0
+    video = cv2.VideoCapture(file)
     while video.read()[0]:
         i += 1
+    video.release()
     return i
+
+def extract_video_subtitles(file: str) -> Dict[int, Subtitle]:
+    print(f"PROCESSING: {video_file}")
+    video = Video(video_file)
+    frame_selector = FrameSelector()
+    height = video.frame_height()
+    ocr = OCR()
+    sub_dict: Dict[int, Subtitle] = {}
+    for frame in video:
+        print(f"frame: {video.frame_number()} [{round(video.progress(), 3)}%]")
+        frame = crop_subtitle(frame, height)
+        if frame_selector.select(frame):
+            frame_results = ocr.run(frame)
+            sub_dict[video.frame_number()] = Subtitle(
+                time = video.time(),
+                text = merge_results(frame_results),
+            )
+            if len(frame_results) == 0:
+                frame_selector.remove_filter()
+            else:
+                frame_selector.add_filter(
+                    *merged_bounding_box(frame_results)
+                )
+    return sub_dict
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(
@@ -65,31 +91,9 @@ if __name__ == "__main__":
     video_files = args["files"]
 
     for video_file in video_files:
-        print(f"PROCESSING: {video_file}")
-        video = Video(video_file)
-        frame_selector = FrameSelector()
-        height = video.frame_height()
-        frame_count = count_frames(cv2.VideoCapture(video_file))
-        ocr = OCR()
-        sub_dict: Dict[int, Subtitle] = {}
-        for frame in video:
-            print(f"frame: {video.frame_number()} [{round(video.progress(), 3)}%]")
-            frame = crop_subtitle(frame, height)
-            if frame_selector.select(frame):
-                frame_results = ocr.run(frame)
-                sub_dict[video.frame_number()] = Subtitle(
-                    time = video.time(),
-                    text = merge_results(frame_results),
-                )
-                if len(frame_results) == 0:
-                    frame_selector.remove_filter()
-                else:
-                    frame_selector.add_filter(
-                        *merged_bounding_box(frame_results)
-                    )
-
+        sub_dict = extract_video_subtitles(video_file)
         subtitle_generator = SubtitleGenerator()
-        sub_list = [None] * frame_count
+        sub_list = [None] * count_frames(video_file)
         for idx, sub in sub_dict.items():
             sub_list[idx] = sub
         for sub in sub_list:

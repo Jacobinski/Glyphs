@@ -14,6 +14,9 @@ class Video:
         self.__fps = v.get(cv2.CAP_PROP_FPS)
         self.__frame_count = v.get(cv2.CAP_PROP_FRAME_COUNT)
 
+    def __del__(self):
+        self.__video.release()
+
     def __iter__(self):
         return self
 
