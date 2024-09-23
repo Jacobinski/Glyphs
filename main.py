@@ -74,7 +74,7 @@ def count_frames(file):
     return i
 
 def extract_video_subtitles(file: str, start_idx: int, stop_idx: int, progress: Value) -> Dict[int, Subtitle]:
-    video = Video(video_file, start_idx, stop_idx)
+    video = Video(file, start_idx, stop_idx)
     frame_selector = FrameSelector()
     height = video.frame_height()
     ocr = OCR()
