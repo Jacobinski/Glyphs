@@ -74,7 +74,6 @@ def count_frames(file):
     return i
 
 def extract_video_subtitles(file: str, start_idx: int, stop_idx: int, progress: Value) -> Dict[int, Subtitle]:
-    print(f"PROCESSING: {video_file}")
     video = Video(video_file, start_idx, stop_idx)
     frame_selector = FrameSelector()
     height = video.frame_height()
@@ -113,6 +112,8 @@ if __name__ == "__main__":
     video_files = args["files"]
 
     for video_file in video_files:
+        print(f"PROCESSING: {video_file}")
+
         num_frames = count_frames(video_file)
         num_workers = os.cpu_count() - 1
         segments = split_into_segments(num_frames, num_workers)
