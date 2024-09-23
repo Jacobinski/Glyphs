@@ -7,12 +7,15 @@ class Video:
     __frame_number: int = 0
     __fps: int = 0
     __frame_count: int = 0  # This is approximate. Need to scan the video for true number
+    __stop_index: int = 0
 
-    def __init__(self, file_path: str):
+    def __init__(self, file_path: str, start_idx: int, stop_idx: int):
         v = cv2.VideoCapture(file_path)
         self.__video = v
         self.__fps = v.get(cv2.CAP_PROP_FPS)
         self.__frame_count = v.get(cv2.CAP_PROP_FRAME_COUNT)
+        self.__stop_index = stop_idx
+        v.set(cv2.CAP_PROP_POS_FRAMES, start_idx)
 
     def __del__(self):
         self.__video.release()
@@ -21,6 +24,8 @@ class Video:
         return self
 
     def __next__(self):
+        if self.__frame_number >= self.__stop_index:
+            raise StopIteration
         success, frame = self.__video.read()
         if success:
             self.__frame_number += 1

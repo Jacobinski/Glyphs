@@ -53,9 +53,9 @@ def count_frames(file):
     video.release()
     return i
 
-def extract_video_subtitles(file: str) -> Dict[int, Subtitle]:
+def extract_video_subtitles(file: str, start_idx: int, stop_idx: int) -> Dict[int, Subtitle]:
     print(f"PROCESSING: {video_file}")
-    video = Video(video_file)
+    video = Video(video_file, start_idx, stop_idx)
     frame_selector = FrameSelector()
     height = video.frame_height()
     ocr = OCR()
@@ -92,9 +92,10 @@ if __name__ == "__main__":
     video_files = args["files"]
 
     for video_file in video_files:
-        subs = [None] * count_frames(video_file)
+        num_frames = count_frames(video_file)
+        subs = [None] * num_frames
         with ThreadPoolExecutor(max_workers=1) as executor:
-            futures = [executor.submit(extract_video_subtitles, video_file)]
+            futures = [executor.submit(extract_video_subtitles, video_file, 0, num_frames)]
             for future in as_completed(futures):
                 for idx, sub in future.result().items():
                     subs[idx] = sub
