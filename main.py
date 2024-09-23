@@ -63,12 +63,16 @@ def count_frames(file):
     The other methods, such as video.get(cv2.CAP_PROP_FRAME_COUNT) are not
     accurate for some videos.
     """
-    i = 0
+    # The video metadata is typically quite close to the real value.
+    # Take the estimate, back track a bit, and then count to obtain real value.
     video = cv2.VideoCapture(file)
+    estimated_count = video.get(cv2.CAP_PROP_FRAME_COUNT)
+    count = estimated_count - 50
+    video.set(cv2.CAP_PROP_POS_FRAMES, count)
     while video.read()[0]:
-        i += 1
+        count += 1
     video.release()
-    return i
+    return int(count)
 
 def extract_video_subtitles(
         file: str,
