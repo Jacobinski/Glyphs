@@ -12,6 +12,7 @@ from datetime import timedelta
 from ocr import Result, OCR
 from video import Video
 from dataclasses import dataclass
+from concurrent.futures import ThreadPoolExecutor, as_completed
 
 @dataclass
 class Subtitle:
@@ -91,12 +92,15 @@ if __name__ == "__main__":
     video_files = args["files"]
 
     for video_file in video_files:
-        sub_dict = extract_video_subtitles(video_file)
+        subs = [None] * count_frames(video_file)
+        with ThreadPoolExecutor(max_workers=1) as executor:
+            futures = [executor.submit(extract_video_subtitles, video_file)]
+            for future in as_completed(futures):
+                for idx, sub in future.result().items():
+                    subs[idx] = sub
+
         subtitle_generator = SubtitleGenerator()
-        sub_list = [None] * count_frames(video_file)
-        for idx, sub in sub_dict.items():
-            sub_list[idx] = sub
-        for sub in sub_list:
+        for sub in subs:
             if sub is None:
                 continue
             subtitle_generator.add_subtitle(
