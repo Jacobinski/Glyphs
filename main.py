@@ -5,7 +5,7 @@ import os
 import math
 
 from subtitle import SubtitleGenerator
-from typing import Dict
+from typing import Dict, List, Tuple
 from frame_selector import FrameSelector
 from statistics import mean
 from datetime import timedelta
@@ -36,6 +36,22 @@ def merged_bounding_box(results: list[Result]):
     max_y = functools.reduce(lambda m, pt: max(m, pt.y), points, -math.inf)
     return min_x, min_y, max_x, max_y
 
+def split_into_segments(length: int, num_segments: int) -> List[Tuple]:
+    """Splits the input (0, length) into N segments.
+
+    This is used by the video parallelization code to determine the range for
+    which each executor is responsible.
+
+    Example: split_into_segments(20, 2) -> [(0, 10), (10, 20)]
+
+    In order to deal with the overlap of indices, the executor should treat
+    the tuple as an closed-open range tuple: [0, 10), [10, 20). This is quite
+    natural since in the case of one-segment, the video scanner should read
+    frames in range [0, len(video)).
+    """
+    make_segments = lambda s: (length * s // num_segments, length * (s+1) // num_segments)
+    return list(map(make_segments, range(num_segments)))
+
 def crop_subtitle(image, height):
     # TODO: These values can be dynamically updated by the OCR
     return image[13*height//16:height, :]
@@ -61,6 +77,7 @@ def extract_video_subtitles(file: str, start_idx: int, stop_idx: int) -> Dict[in
     ocr = OCR()
     sub_dict: Dict[int, Subtitle] = {}
     for frame in video:
+        # TODO: Replace this with some kind of per-thread counter variable
         print(f"frame: {video.frame_number()} [{round(video.progress(), 3)}%]")
         frame = crop_subtitle(frame, height)
         if frame_selector.select(frame):
@@ -93,9 +110,15 @@ if __name__ == "__main__":
 
     for video_file in video_files:
         num_frames = count_frames(video_file)
+        num_workers = os.cpu_count() - 1
+        segments = split_into_segments(num_frames, num_workers)
+
         subs = [None] * num_frames
-        with ThreadPoolExecutor(max_workers=1) as executor:
-            futures = [executor.submit(extract_video_subtitles, video_file, 0, num_frames)]
+        with ThreadPoolExecutor(max_workers=num_workers) as executor:
+            futures = [
+                executor.submit(extract_video_subtitles, video_file, start_idx, stop_idx)
+                for start_idx, stop_idx in segments
+            ]
             for future in as_completed(futures):
                 for idx, sub in future.result().items():
                     subs[idx] = sub

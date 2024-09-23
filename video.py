@@ -14,6 +14,7 @@ class Video:
         self.__video = v
         self.__fps = v.get(cv2.CAP_PROP_FPS)
         self.__frame_count = v.get(cv2.CAP_PROP_FRAME_COUNT)
+        self.__frame_number = start_idx
         self.__stop_index = stop_idx
         v.set(cv2.CAP_PROP_POS_FRAMES, start_idx)
 
