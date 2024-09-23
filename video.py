@@ -39,4 +39,4 @@ class Video:
         return (100.0 * self.__frame_number) / self.__frame_count
 
     def frame_height(self) -> int:
-        return self.__video.get(cv2.CAP_PROP_FRAME_HEIGHT)
+        return int(self.__video.get(cv2.CAP_PROP_FRAME_HEIGHT))

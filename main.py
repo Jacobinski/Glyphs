@@ -5,10 +5,19 @@ import os
 import math
 
 from subtitle import SubtitleGenerator
+from typing import List
 from frame_selector import FrameSelector
 from statistics import mean
+from datetime import timedelta
 from ocr import Result, OCR
 from video import Video
+from dataclasses import dataclass
+
+@dataclass
+class Subtitle:
+    frame_num: int
+    time: timedelta
+    text: str
 
 def merge_results(results: list[Result]) -> str:
     """Combines 'Result' containers, sorting by increasing average-x values for the bounding box. This is L-to-R reading order."""
@@ -58,22 +67,23 @@ if __name__ == "__main__":
 
     for video_file in video_files:
         print(f"PROCESSING: {video_file}")
-        print(f"FRAME COUNT: {count_frames(cv2.VideoCapture(video_file))}")
         video = Video(video_file)
-        subtitle_generator = SubtitleGenerator()
         frame_selector = FrameSelector()
         height = video.frame_height()
+        frame_count = count_frames(cv2.VideoCapture(video_file))
         ocr = OCR()
+        subtitles:List[Subtitle] = []
         for frame in video:
+            print(f"frame: {video.frame_number()} [{round(video.progress(), 3)}%]")
             frame = crop_subtitle(frame, height)
-            pct = video.progress()
-            fnum = video.frame_number()
             if frame_selector.select(frame):
-                print(f"frame: {fnum} [{round(pct, 3)}%]")
                 frame_results = ocr.run(frame)
-                subtitle_generator.add_subtitle(
-                    time=video.time(),
-                    content=merge_results(frame_results)
+                subtitles.append(
+                    Subtitle(
+                        frame_num = video.frame_number(),
+                        time = video.time(),
+                        text = merge_results(frame_results),
+                    )
                 )
                 if len(frame_results) == 0:
                     frame_selector.remove_filter()
@@ -81,6 +91,13 @@ if __name__ == "__main__":
                     frame_selector.add_filter(
                         *merged_bounding_box(frame_results)
                     )
+
+        subtitle_generator = SubtitleGenerator()
+        for sub in subtitles:
+            subtitle_generator.add_subtitle(
+                time = sub.time,
+                content = sub.text
+            )
         srt_file = os.path.splitext(video_file)[0] + ".srt"
         with open(srt_file, "w", encoding='utf-8') as f:
             f.write(subtitle_generator.create_srt())
