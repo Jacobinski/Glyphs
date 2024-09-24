@@ -74,7 +74,7 @@ def count_frames(file):
     video.release()
     return int(count)
 
-def extract_video_subtitles(
+def process_video_segment(
         file: str,
         start_idx: int,
         stop_idx: int,
@@ -103,6 +103,47 @@ def extract_video_subtitles(
         progress_queue.put(1)
     results_queue.put(sub_dict)
 
+def process_video(file: str) -> str:
+    num_frames = count_frames(file)
+    num_workers = os.cpu_count() - 1
+    segments = split_into_segments(num_frames, num_workers)
+
+    progress_queue = multiprocessing.Queue()
+    result_queue = multiprocessing.Queue()
+
+    workers = [
+        multiprocessing.Process(
+            target=process_video_segment,
+            args=(file, start, stop, progress_queue, result_queue)
+        )
+        for start, stop in segments
+    ]
+    for p in workers:
+        p.start()
+
+    count = 0
+    with tqdm(total=num_frames, desc="Processing video") as pbar:
+        while count < num_frames:
+            val = progress_queue.get()
+            count += val
+            pbar.n = count
+            pbar.refresh()
+
+    subs = [None] * num_frames
+    for _ in workers:
+        for idx, sub in result_queue.get().items():
+            subs[idx] = sub
+
+    subtitle_generator = SubtitleGenerator(verbose=verbose)
+    for sub in subs:
+        if sub is None:
+            continue
+        subtitle_generator.add_subtitle(
+            time = sub.time,
+            content = sub.text
+        )
+    return subtitle_generator.create_srt()
+
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(
         prog='ChineseSubtitleExtractor',
@@ -125,45 +166,7 @@ if __name__ == "__main__":
 
     for video_file in video_files:
         print(f"PROCESSING: {video_file}")
-
-        num_frames = count_frames(video_file)
-        num_workers = os.cpu_count() - 1
-        segments = split_into_segments(num_frames, num_workers)
-
-        progress_queue = multiprocessing.Queue()
-        result_queue = multiprocessing.Queue()
-
-        workers = [
-            multiprocessing.Process(
-                target=extract_video_subtitles,
-                args=(video_file, start, stop, progress_queue, result_queue)
-            )
-            for start, stop in segments
-        ]
-        for p in workers:
-            p.start()
-
-        count = 0
-        with tqdm(total=num_frames, desc="Processing video") as pbar:
-            while count < num_frames:
-                val = progress_queue.get()
-                count += val
-                pbar.n = count
-                pbar.refresh()
-
-        subs = [None] * num_frames
-        for _ in workers:
-            for idx, sub in result_queue.get().items():
-                subs[idx] = sub
-
-        subtitle_generator = SubtitleGenerator(verbose=verbose)
-        for sub in subs:
-            if sub is None:
-                continue
-            subtitle_generator.add_subtitle(
-                time = sub.time,
-                content = sub.text
-            )
+        subtitles = process_video(video_file)
         srt_file = os.path.splitext(video_file)[0] + ".srt"
         with open(srt_file, "w", encoding='utf-8') as f:
-            f.write(subtitle_generator.create_srt())
+            f.write(subtitles)
