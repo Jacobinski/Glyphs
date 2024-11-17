@@ -59,4 +59,4 @@ class FrameSelector:
 
         # TODO: How do we combine these? Should we use ML to determine the thresholds?
         self.previous_frame = frame
-        return ssim_score < 0.90 or match_score < 0.90
+        return ssim_score < 0.98 or match_score < 0.98 # Higher = more sensitive
