@@ -103,7 +103,7 @@ def process_video_segment(
         progress_queue.put(1)
     results_queue.put(sub_dict)
 
-def process_video(file: str) -> str:
+def process_video(file: str, verbose=False) -> str:
     num_frames = count_frames(file)
     num_workers = os.cpu_count() - 1
     segments = split_into_segments(num_frames, num_workers)
@@ -166,7 +166,7 @@ if __name__ == "__main__":
 
     for video_file in video_files:
         print(f"PROCESSING: {video_file}")
-        subtitles = process_video(video_file)
+        subtitles = process_video(video_file, verbose=verbose)
         srt_file = os.path.splitext(video_file)[0] + ".srt"
         with open(srt_file, "w", encoding='utf-8') as f:
             f.write(subtitles)
