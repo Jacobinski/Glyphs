@@ -16,8 +16,8 @@ class SubtitleGenerator:
         self.__verbose = verbose
 
     def current_index(self):
-        i = self._index;
-        self._index += 1;
+        i = self._index
+        self._index += 1
         return i
 
     # TODO: We can implement outlier detection by maintaining a count of each repeated subtitle
