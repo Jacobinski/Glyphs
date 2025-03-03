@@ -146,8 +146,8 @@ def process_video(file: str, verbose=False) -> str:
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(
-        prog='ChineseSubtitleExtractor',
-        description='Extracts hardcoded subtitles from videos into SRT files',
+        prog='glyphs',
+        description='CLI program to extract hardcoded video subtitles.',
     )
     parser.add_argument(
         "files",
