@@ -2,8 +2,6 @@ import cv2
 
 from skimage.metrics import structural_similarity as ssim
 
-# TODO: Should file names have underscores?
-# TODO: Install a Python linter, such as Black, to standardize conventions.
 class FrameSelector:
     """Applies heuristics to determine if OCR should be run for a frame."""
     previous_frame = None

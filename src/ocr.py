@@ -38,6 +38,8 @@ class OCR:
         results = self.model.ocr(image_or_path, cls=False)[0]
         if results is None:
             return []
+        # print(results)
+        # [[[[530.0, 76.0], [1390.0, 76.0], [1390.0, 140.0], [530.0, 140.0]], ('这个机器。一分钟能够前进一百米', 0.9675779342651367)]]
         frame_results = []
         for res in results:
             bounding_box, character_tuple = res

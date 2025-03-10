@@ -1,9 +1,9 @@
 import cv2
 import functools
-import argparse
 import os
 import math
 import multiprocessing
+import cli
 
 from subtitle import SubtitleGenerator
 from typing import Dict, List, Tuple
@@ -145,28 +145,11 @@ def process_video(file: str, verbose=False) -> str:
     return subtitle_generator.create_srt()
 
 if __name__ == "__main__":
-    parser = argparse.ArgumentParser(
-        prog='glyphs',
-        description='CLI program to extract hardcoded video subtitles.',
-    )
-    parser.add_argument(
-        "files",
-        help="paths to video file(s)",
-        nargs='+',  # Allow multiple file arguments
-        type=str,
-    )
-    parser.add_argument(
-        "--verbose",
-        help="Enable additional logs",
-        action=argparse.BooleanOptionalAction  # Allows using --verbose for true and --no-verbose for false
-    )
-    args = vars(parser.parse_args())
-    video_files = args["files"]
-    verbose = args["verbose"]
+    args = cli.parse_arguments()
 
-    for video_file in video_files:
+    for video_file in args.files:
         print(f"PROCESSING: {video_file}")
-        subtitles = process_video(video_file, verbose=verbose)
+        subtitles = process_video(video_file, verbose=args.verbose)
         srt_file = os.path.splitext(video_file)[0] + ".srt"
         with open(srt_file, "w", encoding='utf-8') as f:
             f.write(subtitles)
