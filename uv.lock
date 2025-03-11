@@ -4,7 +4,8 @@ requires-python = ">=3.12.8"
 resolution-markers = [
     "sys_platform == 'darwin'",
     "platform_machine == 'aarch64' and sys_platform == 'linux'",
-    "(platform_machine != 'aarch64' and sys_platform == 'linux') or (sys_platform != 'darwin' and sys_platform != 'linux')",
+    "sys_platform == 'win32'",
+    "(platform_machine != 'aarch64' and sys_platform == 'linux') or (sys_platform != 'darwin' and sys_platform != 'linux' and sys_platform != 'win32')",
 ]
 
 [[package]]
@@ -56,9 +57,9 @@ name = "anyio"
 version = "4.8.0"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
-    { name = "idna" },
-    { name = "sniffio" },
-    { name = "typing-extensions", marker = "python_full_version < '3.13'" },
+    { name = "idna", marker = "sys_platform != 'win32'" },
+    { name = "sniffio", marker = "sys_platform != 'win32'" },
+    { name = "typing-extensions", marker = "python_full_version < '3.13' and sys_platform != 'win32'" },
 ]
 sdist = { url = "https://files.pythonhosted.org/packages/a3/73/199a98fc2dae33535d6b8e8e6ec01f8c1d76c9adb096c6b7d64823038cde/anyio-4.8.0.tar.gz", hash = "sha256:1d9fe889df5212298c0c0723fa20479d1b94883a2df44bd3897aa91083316f7a", size = 181126 }
 wheels = [
@@ -278,7 +279,8 @@ dependencies = [
     { name = "nltk" },
     { name = "opencv-python" },
     { name = "paddleocr" },
-    { name = "paddlepaddle" },
+    { name = "paddlepaddle", version = "0.0.0", source = { url = "https://paddle-wheel.bj.bcebos.com/develop/macos/macos-cpu-openblas-m1/paddlepaddle-0.0.0-cp312-cp312-macosx_14_0_arm64.whl" }, marker = "sys_platform == 'darwin'" },
+    { name = "paddlepaddle", version = "2.6.2", source = { registry = "https://pypi.org/simple" }, marker = "sys_platform == 'linux'" },
     { name = "pytest" },
     { name = "setuptools" },
     { name = "srt" },
@@ -289,7 +291,8 @@ requires-dist = [
     { name = "nltk", specifier = ">=3.9.1" },
     { name = "opencv-python", specifier = ">=4.11.0.86" },
     { name = "paddleocr", specifier = ">=2.9.1" },
-    { name = "paddlepaddle", url = "https://paddle-wheel.bj.bcebos.com/develop/macos/macos-cpu-openblas-m1/paddlepaddle-0.0.0-cp312-cp312-macosx_14_0_arm64.whl" },
+    { name = "paddlepaddle", marker = "sys_platform == 'darwin'", url = "https://paddle-wheel.bj.bcebos.com/develop/macos/macos-cpu-openblas-m1/paddlepaddle-0.0.0-cp312-cp312-macosx_14_0_arm64.whl" },
+    { name = "paddlepaddle", marker = "sys_platform == 'linux'", specifier = ">=2.6.2" },
     { name = "pytest", specifier = ">=8.3.5" },
     { name = "setuptools", specifier = ">=75.8.2" },
     { name = "srt", specifier = ">=3.5.3" },
@@ -309,8 +312,8 @@ name = "httpcore"
 version = "1.0.7"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
-    { name = "certifi" },
-    { name = "h11" },
+    { name = "certifi", marker = "sys_platform != 'win32'" },
+    { name = "h11", marker = "sys_platform != 'win32'" },
 ]
 sdist = { url = "https://files.pythonhosted.org/packages/6a/41/d7d0a89eb493922c37d343b607bc1b5da7f5be7e383740b4753ad8943e90/httpcore-1.0.7.tar.gz", hash = "sha256:8551cb62a169ec7162ac7be8d4817d561f60e08eaa485234898414bb5a8a0b4c", size = 85196 }
 wheels = [
@@ -322,10 +325,10 @@ name = "httpx"
 version = "0.28.1"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
-    { name = "anyio" },
-    { name = "certifi" },
-    { name = "httpcore" },
-    { name = "idna" },
+    { name = "anyio", marker = "sys_platform != 'win32'" },
+    { name = "certifi", marker = "sys_platform != 'win32'" },
+    { name = "httpcore", marker = "sys_platform != 'win32'" },
+    { name = "idna", marker = "sys_platform != 'win32'" },
 ]
 sdist = { url = "https://files.pythonhosted.org/packages/b1/df/48c586a5fe32a0f01324ee087459e112ebb7224f646c0b5023f5e79e9956/httpx-0.28.1.tar.gz", hash = "sha256:75e98c5f16b0f35b567856f597f06ff2270a374470a5c2392242528e3e3e42fc", size = 141406 }
 wheels = [
@@ -646,7 +649,7 @@ name = "opt-einsum"
 version = "3.3.0"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
-    { name = "numpy" },
+    { name = "numpy", marker = "sys_platform != 'win32'" },
 ]
 sdist = { url = "https://files.pythonhosted.org/packages/7d/bf/9257e53a0e7715bc1127e15063e831f076723c6cd60985333a1c18878fb8/opt_einsum-3.3.0.tar.gz", hash = "sha256:59f6475f77bbc37dcf7cd748519c0ec60722e91e63ca114e68821c0c54a46549", size = 73951 }
 wheels = [
@@ -697,16 +700,19 @@ wheels = [
 name = "paddlepaddle"
 version = "0.0.0"
 source = { url = "https://paddle-wheel.bj.bcebos.com/develop/macos/macos-cpu-openblas-m1/paddlepaddle-0.0.0-cp312-cp312-macosx_14_0_arm64.whl" }
+resolution-markers = [
+    "sys_platform == 'darwin'",
+]
 dependencies = [
-    { name = "astor" },
-    { name = "decorator" },
-    { name = "httpx" },
-    { name = "networkx" },
-    { name = "numpy" },
-    { name = "opt-einsum" },
-    { name = "pillow" },
-    { name = "protobuf" },
-    { name = "typing-extensions" },
+    { name = "astor", marker = "sys_platform == 'darwin'" },
+    { name = "decorator", marker = "sys_platform == 'darwin'" },
+    { name = "httpx", marker = "sys_platform == 'darwin'" },
+    { name = "networkx", marker = "sys_platform == 'darwin'" },
+    { name = "numpy", marker = "sys_platform == 'darwin'" },
+    { name = "opt-einsum", marker = "sys_platform == 'darwin'" },
+    { name = "pillow", marker = "sys_platform == 'darwin'" },
+    { name = "protobuf", marker = "sys_platform == 'darwin'" },
+    { name = "typing-extensions", marker = "sys_platform == 'darwin'" },
 ]
 wheels = [
     { url = "https://paddle-wheel.bj.bcebos.com/develop/macos/macos-cpu-openblas-m1/paddlepaddle-0.0.0-cp312-cp312-macosx_14_0_arm64.whl", hash = "sha256:15555fb97f5d216829d4c9060b158c9859193726425875a6acd1a8d01481d074" },
@@ -723,6 +729,28 @@ requires-dist = [
     { name = "pillow" },
     { name = "protobuf", specifier = ">=3.20.2" },
     { name = "typing-extensions" },
+]
+
+[[package]]
+name = "paddlepaddle"
+version = "2.6.2"
+source = { registry = "https://pypi.org/simple" }
+resolution-markers = [
+    "platform_machine == 'aarch64' and sys_platform == 'linux'",
+    "(platform_machine != 'aarch64' and sys_platform == 'linux') or (sys_platform != 'darwin' and sys_platform != 'linux' and sys_platform != 'win32')",
+]
+dependencies = [
+    { name = "astor", marker = "sys_platform != 'darwin' and sys_platform != 'win32'" },
+    { name = "decorator", marker = "sys_platform != 'darwin' and sys_platform != 'win32'" },
+    { name = "httpx", marker = "sys_platform != 'darwin' and sys_platform != 'win32'" },
+    { name = "numpy", marker = "sys_platform != 'darwin' and sys_platform != 'win32'" },
+    { name = "opt-einsum", marker = "sys_platform != 'darwin' and sys_platform != 'win32'" },
+    { name = "pillow", marker = "sys_platform != 'darwin' and sys_platform != 'win32'" },
+    { name = "protobuf", marker = "sys_platform != 'darwin' and sys_platform != 'win32'" },
+]
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/28/48/c8e0eba08eb7efff4ca41f443ee37d6e763a942a62d5397b3471d3964de5/paddlepaddle-2.6.2-cp312-cp312-manylinux1_x86_64.whl", hash = "sha256:1aab2186d24402060f690a850acb21e014282b01882bcc1442f5f387dd012a50", size = 125948725 },
+    { url = "https://files.pythonhosted.org/packages/5b/c9/f1b04fa7d9f9b44d31edf6e115bd52945a3ccedc87d54a025afc0a9aecef/paddlepaddle-2.6.2-cp312-cp312-manylinux2014_aarch64.whl", hash = "sha256:8f1d922d0afad50352150f6caaf8781cb9850734ef5f15e96347be048fd46741", size = 74273370 },
 ]
 
 [[package]]
@@ -778,8 +806,6 @@ version = "5.29.3"
 source = { registry = "https://pypi.org/simple" }
 sdist = { url = "https://files.pythonhosted.org/packages/f7/d1/e0a911544ca9993e0f17ce6d3cc0932752356c1b0a834397f28e63479344/protobuf-5.29.3.tar.gz", hash = "sha256:5da0f41edaf117bde316404bad1a486cb4ededf8e4a54891296f648e8e076620", size = 424945 }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/dc/7a/1e38f3cafa022f477ca0f57a1f49962f21ad25850c3ca0acd3b9d0091518/protobuf-5.29.3-cp310-abi3-win32.whl", hash = "sha256:3ea51771449e1035f26069c4c7fd51fba990d07bc55ba80701c78f886bf9c888", size = 422708 },
-    { url = "https://files.pythonhosted.org/packages/61/fa/aae8e10512b83de633f2646506a6d835b151edf4b30d18d73afd01447253/protobuf-5.29.3-cp310-abi3-win_amd64.whl", hash = "sha256:a4fa6f80816a9a0678429e84973f2f98cbc218cca434abe8db2ad0bffc98503a", size = 434508 },
     { url = "https://files.pythonhosted.org/packages/dd/04/3eaedc2ba17a088961d0e3bd396eac764450f431621b58a04ce898acd126/protobuf-5.29.3-cp38-abi3-macosx_10_9_universal2.whl", hash = "sha256:a8434404bbf139aa9e1300dbf989667a83d42ddda9153d8ab76e0d5dcaca484e", size = 417825 },
     { url = "https://files.pythonhosted.org/packages/4f/06/7c467744d23c3979ce250397e26d8ad8eeb2bea7b18ca12ad58313c1b8d5/protobuf-5.29.3-cp38-abi3-manylinux2014_aarch64.whl", hash = "sha256:daaf63f70f25e8689c072cfad4334ca0ac1d1e05a92fc15c54eb9cf23c3efd84", size = 319573 },
     { url = "https://files.pythonhosted.org/packages/a8/45/2ebbde52ad2be18d3675b6bee50e68cd73c9e0654de77d595540b5129df8/protobuf-5.29.3-cp38-abi3-manylinux2014_x86_64.whl", hash = "sha256:c027e08a08be10b67c06bf2370b99c811c466398c357e615ca88c91c07f0910f", size = 319672 },
