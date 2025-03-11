@@ -78,7 +78,7 @@ def process_video_segment(
         file: str,
         start_idx: int,
         stop_idx: int,
-        progress_queue: multiprocessing.Queue,
+        progress: multiprocessing.Value,
         results_queue: multiprocessing.Queue,
     ) -> Dict[int, Subtitle]:
     video = Video(file, start_idx, stop_idx)
@@ -100,34 +100,37 @@ def process_video_segment(
                 frame_selector.add_filter(
                     *merged_bounding_box(frame_results)
                 )
-        progress_queue.put(1)
+        with progress.get_lock():
+            progress.value += 1
     results_queue.put(sub_dict)
 
 def process_video(file: str, verbose=False) -> str:
     num_frames = count_frames(file)
-    num_workers = os.cpu_count() - 1
+    cpus = os.cpu_count()
+    if cpus is None:
+        raise Exception("cannot determine number of CPUs available to process")
+    num_workers = cpus
     segments = split_into_segments(num_frames, num_workers)
 
-    progress_queue = multiprocessing.Queue()
+    progress = multiprocessing.Value('I', 0)
     result_queue = multiprocessing.Queue()
 
     workers = [
         multiprocessing.Process(
             target=process_video_segment,
-            args=(file, start, stop, progress_queue, result_queue)
+            args=(file, start, stop, progress, result_queue)
         )
         for start, stop in segments
     ]
     for p in workers:
         p.start()
 
-    count = 0
     with tqdm(total=num_frames, desc="Processing video") as pbar:
-        while count < num_frames:
-            val = progress_queue.get()
-            count += val
-            pbar.n = count
+        while progress.value < num_frames:
+            pbar.n = progress.value
             pbar.refresh()
+        pbar.n = progress.value
+        pbar.refresh()
 
     subs = [None] * num_frames
     for _ in workers:
