@@ -3,7 +3,6 @@ import cv2
 from datetime import timedelta
 
 class Video:
-    __video = None
     __frame_number: int = 0
     __stop_index: int = 0
 
