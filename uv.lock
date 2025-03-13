@@ -274,7 +274,7 @@ wheels = [
 [[package]]
 name = "glyphs"
 version = "0.0.1"
-source = { editable = "." }
+source = { virtual = "." }
 dependencies = [
     { name = "nltk" },
     { name = "opencv-python" },

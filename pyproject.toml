@@ -19,11 +19,3 @@ dependencies = [
 # This version of PaddlePaddle is required to work around PaddleOCR hanging indefinitely on OSX. https://github.com/PaddlePaddle/PaddleOCR/issues/11706
 paddlepaddle = { url = "https://paddle-wheel.bj.bcebos.com/develop/macos/macos-cpu-openblas-m1/paddlepaddle-0.0.0-cp312-cp312-macosx_14_0_arm64.whl", marker = "sys_platform == 'darwin'" }
 
-[build-system]
-requires = ['setuptools']
-build-backend = 'setuptools.build_meta'
-
-[tool.pytest.ini_options]
-pythonpath = [
-  ".", "src", "src/cli",
-]
