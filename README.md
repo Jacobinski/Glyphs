@@ -12,5 +12,5 @@ The [uv](https://github.com/astral-sh/uv) package manager automatically takes ca
 ## Usage
 
 ```
-$ uv run src/main.py -- test_clips/ep5_30s_to_60s.mkv 
+$ uv run src/glyphs/main.py -- test_clips/ep5_30s_to_60s.mkv 
 ```
