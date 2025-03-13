@@ -1,20 +1,20 @@
 import cv2
 import functools
-import os
 import math
 import multiprocessing
-import cli
+import os
 import time
-
-from subtitle import SubtitleGenerator
-from typing import Dict, List, Tuple
-from frame_selector import FrameSelector
-from statistics import mean
-from datetime import timedelta
-from ocr import Result, OCR
-from video import Video
 from dataclasses import dataclass
+from datetime import timedelta
+from statistics import mean
 from tqdm import tqdm
+from typing import Dict, List, Tuple
+
+import glyphs.cli as cli
+from glyphs.frame_selector import FrameSelector
+from glyphs.ocr import Result, OCR
+from glyphs.subtitle import SubtitleGenerator
+from glyphs.video import Video
 
 @dataclass
 class Subtitle:
@@ -150,7 +150,7 @@ def process_video(file: str, verbose=False) -> str:
         )
     return subtitle_generator.create_srt()
 
-if __name__ == "__main__":
+def main():
     args = cli.parse_arguments()
 
     for video_file in args.files:
@@ -159,3 +159,6 @@ if __name__ == "__main__":
         srt_file = os.path.splitext(video_file)[0] + ".srt"
         with open(srt_file, "w", encoding='utf-8') as f:
             f.write(subtitles)
+
+if __name__ == "__main__":
+    main()
