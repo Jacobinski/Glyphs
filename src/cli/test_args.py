@@ -20,9 +20,9 @@ def test_parse_arguments(files, verbose, want):
     with patch.object(sys, 'argv', test_args):
         assert want == parse_arguments()
 
-def test_parse_arguments_requires_file():
-    test_args = PROGRAM_NAME_ARGV0 + [] + ["--verbose"]
-    with patch.object(sys, 'argv', test_args):
-        with pytest.raises(SystemExit) as error:
-            parse_arguments()
-        assert error.value.code == 2  # Invalid CLI command code
+@patch("sys.argv")
+def test_parse_arguments_requires_file(mock_argv):
+    mock_argv.return_value = PROGRAM_NAME_ARGV0 + [] + ["--verbose"]
+    with pytest.raises(SystemExit) as error:
+        parse_arguments()
+    assert error.value.code == 2  # Invalid CLI command code
