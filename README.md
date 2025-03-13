@@ -1,9 +1,20 @@
 # Glyphs
 
 > [!WARNING]  
-> This project is a work in-progress and only partially works.
+> This project is a work in-progress and does not work perfectly. It sometimes
+> gets stuck on large videos and also frequently creates artifacts in the output
+> `.srt` files.
 
 Glyphs is a command line application to extract hardcoded subtitles from videos.
+
+## TODO
+
+- [ ] Add user-friendly output to log where the `.srt` file was saved
+- [ ] Add heuristics to detect subtitles vs random text in videos
+- [ ] Add more logic/heuristics to guard against artifacts
+- [ ] Add TUI showing location of subtitles and allowing for user clean-up.
+- [ ] Add documentation showing how to run tool on multiple files simultaneously
+- [ ] Add contributor guide
 
 ## Dependencies
 
@@ -12,16 +23,23 @@ manager to install the necessary Python interpreter and dependencies.
 
 ## Usage
 
-Install this a [uv tool](https://docs.astral.sh/uv/concepts/tools/) that can be 
-called from anywhere within your command line. The `-e` flag allows local
-changes to be immediately usable with the tool without reinstallation.
+Install `glyphs` via the [uv tool](https://docs.astral.sh/uv/concepts/tools/) 
+command. This adds the command to your `PATH` variable, allowing it to be called
+from anywhere with your command line.
 
 ``` sh
-$ uv tool install -e
+$ uv tool install -e .
 Installed 1 executable: glyphs
+```
 
+The `glyphs` command can be given a video file and will use OCR to watch the
+video and convert all subtitles into an `.srt` file within the same directory
+as the video. This `.srt` file can be used by any standard video player to
+display subtitles for the video.
+
+```
 $ glyphs <path_to_video>
-Processing video: 100%|████████████████████████████████████████████| 781/781 [00:14<00:00, 53.79it/s]
+Processing video: 100%|██████████████████████████████████████| 781/781 [00:14<00:00, 53.79it/s]
 ```
 
 ## Development
