@@ -4,6 +4,7 @@ import os
 import math
 import multiprocessing
 import cli
+import time
 
 from subtitle import SubtitleGenerator
 from typing import Dict, List, Tuple
@@ -129,6 +130,8 @@ def process_video(file: str, verbose=False) -> str:
         while progress.value < num_frames:
             pbar.n = progress.value
             pbar.refresh()
+            # sleep for a short time to avoid busy waiting
+            time.sleep(0.1)
         pbar.n = progress.value
         pbar.refresh()
 
