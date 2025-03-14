@@ -119,7 +119,8 @@ def process_video(file: str, verbose=False) -> str:
     workers = [
         multiprocessing.Process(
             target=process_video_segment,
-            args=(file, start, stop, progress, result_queue)
+            args=(file, start, stop, progress, result_queue),
+            daemon=True,
         )
         for start, stop in segments
     ]
