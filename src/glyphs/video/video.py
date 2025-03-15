@@ -23,11 +23,9 @@ class Video:
         if self.__frame_number >= self.__stop_index:
             raise StopIteration
         success, frame = self.__video.read()
-        if success:
-            self.__frame_number += 1
-            return frame
-        else:
-            raise StopIteration
+        assert success  # If this fails, our __stop_index is invalid
+        self.__frame_number += 1
+        return frame
 
     def time(self) -> timedelta:
         ms = self.__video.get(cv2.CAP_PROP_POS_MSEC)

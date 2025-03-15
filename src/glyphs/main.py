@@ -14,7 +14,7 @@ import glyphs.cli as cli
 from glyphs.frame_selector import FrameSelector
 from glyphs.ocr import Result, OCR
 from glyphs.subtitle import SubtitleGenerator
-from glyphs.video import Video
+from glyphs.video import Video, count_frames
 
 @dataclass
 class Subtitle:
@@ -57,23 +57,6 @@ def split_into_segments(length: int, num_segments: int) -> List[Tuple]:
 def crop_subtitle(image, height):
     # TODO: These values can be dynamically updated by the OCR
     return image[13*height//16:height, :]
-
-def count_frames(file):
-    """Determine the number of frames in a video via a full scan.
-
-    The other methods, such as video.get(cv2.CAP_PROP_FRAME_COUNT) are not
-    accurate for some videos.
-    """
-    # The video metadata is typically quite close to the real value.
-    # Take the estimate, back track a bit, and then count to obtain real value.
-    video = cv2.VideoCapture(file)
-    estimated_count = video.get(cv2.CAP_PROP_FRAME_COUNT)
-    count = estimated_count - 50
-    video.set(cv2.CAP_PROP_POS_FRAMES, count)
-    while video.read()[0]:
-        count += 1
-    video.release()
-    return int(count)
 
 def process_video_segment(
         file: str,
