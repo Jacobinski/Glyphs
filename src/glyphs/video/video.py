@@ -2,6 +2,8 @@ import cv2
 
 from datetime import timedelta
 
+from glyphs.timestamp import timestamp
+
 class Video:
     __frame_number: int = 0
     __stop_index: int = 0
@@ -27,9 +29,10 @@ class Video:
         self.__frame_number += 1
         return frame
 
-    def time(self) -> timedelta:
+    # TODO: Convert this to a timestamp and propogate it through the system
+    def time(self) -> timestamp:
         ms = self.__video.get(cv2.CAP_PROP_POS_MSEC)
-        return timedelta(milliseconds=ms)
+        return timestamp(milliseconds=ms)
 
     def frame_number(self) -> int:
         return self.__frame_number

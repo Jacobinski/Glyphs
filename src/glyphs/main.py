@@ -15,10 +15,11 @@ from glyphs.frame_selector import FrameSelector
 from glyphs.ocr import Result, OCR
 from glyphs.subtitle import SubtitleGenerator
 from glyphs.video import Video, count_frames
+from glyphs.timestamp import timestamp
 
 @dataclass
 class Subtitle:
-    time: timedelta
+    time: timestamp
     text: str
 
 def merge_results(results: list[Result]) -> str:

@@ -1,7 +1,7 @@
 import srt
 
-from datetime import timedelta
 from nltk import edit_distance
+from glyphs.timestamp import timestamp
 
 class SubtitleGenerator:
     """Generates SRT formatted subtitles."""
@@ -22,7 +22,7 @@ class SubtitleGenerator:
 
     # TODO: We can implement outlier detection by maintaining a count of each repeated subtitle
     #       and pruning (or merging) subtitles with low repetition in the create_srt() function.
-    def add_subtitle(self, time: timedelta, content: str):
+    def add_subtitle(self, time: timestamp, content: str):
         remove_punctuation = str.maketrans({
             '，': '',
             '.': '',
@@ -56,14 +56,18 @@ class SubtitleGenerator:
 
     def create_srt(self):
         if self.current_content != "":
+            start = self.current_start_timestamp
+            end = self.current_recent_timestamp
+            content = self.current_content
             self.subtitles.append(
                 srt.Subtitle(
                     index = self.current_index(),
-                    start = self.current_start_timestamp,
-                    end = self.current_recent_timestamp,
-                    content = self.current_content,
+                    start = start,
+                    end = end,
+                    content = content,
                 )
             )
+            print(f"[{start}-{end}] {content}")
             self.current_content = ""
             self.current_recent_timestamp = None
             self.current_start_timestamp = None

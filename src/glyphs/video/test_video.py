@@ -4,6 +4,7 @@ import pytest
 
 from .video import Video
 from unittest.mock import patch, MagicMock
+from glyphs.timestamp import timestamp
 
 @patch("cv2.VideoCapture")
 def test_video_init(mock_video_capture):
@@ -56,7 +57,7 @@ def test_video_time(mock_video_capture):
     path = "/foo/bar/video.mp4"
     start_idx, stop_idx = 100, 200
     video = Video(path, start_idx, stop_idx)
-    assert video.time() == timedelta(milliseconds=1000)
+    assert video.time() == timestamp(milliseconds=1000)
 
 @patch("cv2.VideoCapture")
 def test_video_frame_height(mock_video_capture):

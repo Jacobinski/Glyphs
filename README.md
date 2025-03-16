@@ -15,7 +15,8 @@ Glyphs is a command line application to extract hardcoded subtitles from videos.
 - [ ] Add TUI showing location of subtitles and allowing for user clean-up.
 - [ ] Add documentation showing how to run tool on multiple files simultaneously
 - [ ] Add contributor guide
-- [ ] Add flag to display subtitles in a condensed format (one-line per subtitle + timestamp)
+- [x] Display subtitles in a condensed format (one-line per subtitle + timestamp) to stdout
+  - [ ] Add flag to conditionally enable this
   - [ ] Add a TUI to allow user to merge them similar to `git rebase --interactive`
 
 ## Dependencies
