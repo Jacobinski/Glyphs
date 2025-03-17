@@ -56,19 +56,18 @@ class SubtitleGenerator:
 
     def create_srt(self):
         if self.current_content != "":
-            start = self.current_start_timestamp
-            end = self.current_recent_timestamp
-            content = self.current_content
             self.subtitles.append(
                 srt.Subtitle(
                     index = self.current_index(),
-                    start = start,
-                    end = end,
-                    content = content,
+                    start = self.current_start_timestamp,
+                    end = self.current_recent_timestamp,
+                    content = self.current_content,
                 )
             )
-            print(f"[{start}-{end}] {content}")
             self.current_content = ""
             self.current_recent_timestamp = None
             self.current_start_timestamp = None
+        for sub in self.subtitles:
+            print(f"[{sub.start}-{sub.end}] {sub.content}")
+
         return srt.compose(self.subtitles)
